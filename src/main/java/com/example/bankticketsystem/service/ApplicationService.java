@@ -9,7 +9,6 @@ import com.example.bankticketsystem.service.TagService;
 import com.example.bankticketsystem.util.CursorUtil;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.exception.NotFoundException;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.*;
@@ -165,7 +164,7 @@ public class ApplicationService {
         // business rule: manager cannot change status of his own application
         if (performer.getRole() == UserRole.ROLE_MANAGER) {
             if (app.getApplicant() != null && app.getApplicant().getId().equals(performer.getId())) {
-                throw new AccessDeniedException("Managers cannot change status of their own applications");
+                throw new BadRequestException("Managers cannot change status of their own applications");
             }
         }
 
