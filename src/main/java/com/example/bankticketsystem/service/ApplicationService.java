@@ -1,6 +1,7 @@
 package com.example.bankticketsystem.service;
 
 import com.example.bankticketsystem.dto.*;
+import com.example.bankticketsystem.exception.ConflictException;
 import com.example.bankticketsystem.model.entity.*;
 import com.example.bankticketsystem.model.enums.ApplicationStatus;
 import com.example.bankticketsystem.model.enums.UserRole;
@@ -198,5 +199,51 @@ public class ApplicationService {
         }
 
         return toDto(app);
+    }
+
+    @Transactional
+    public void deleteApplication(UUID applicationId, UUID actorId) {
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new BadRequestException("Actor not found: " + actorId));
+
+        if (actor.getRole() != UserRole.ROLE_ADMIN) {
+            throw new ConflictException("Only ADMIN can delete applications");
+        }
+
+        Application app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new BadRequestException("Application not found: " + applicationId));
+
+        try {
+            applicationRepository.delete(app);
+
+        } catch (Exception ex) {
+            // если возникли DB constraints — оборачиваем в понятное исключение
+            throw new ConflictException("Failed to delete application (DB constraint): " + ex.getMessage());
+        }
+    }
+
+    public List<ApplicationHistoryDto> listHistory(UUID applicationId, UUID actorId) {
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new BadRequestException("Actor not found: " + actorId));
+
+        Application app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new BadRequestException("Application not found: " + applicationId));
+
+        boolean isOwner = app.getApplicant() != null && app.getApplicant().getId().equals(actor.getId());
+        if (!(isOwner || actor.getRole() == UserRole.ROLE_ADMIN || actor.getRole() == UserRole.ROLE_MANAGER)) {
+            throw new ConflictException("Not allowed to view history");
+        }
+
+        List<ApplicationHistory> history = applicationHistoryRepository.findByApplicationIdOrderByChangedAtDesc(applicationId);
+        return history.stream().map(h -> {
+            ApplicationHistoryDto dto = new ApplicationHistoryDto();
+            dto.setId(h.getId());
+            dto.setApplicationId(h.getApplication() != null ? h.getApplication().getId() : null);
+            dto.setOldStatus(h.getOldStatus());
+            dto.setNewStatus(h.getNewStatus());
+            dto.setChangedByRole(h.getChangedBy());
+            dto.setChangedAt(h.getChangedAt());
+            return dto;
+        }).collect(Collectors.toList());
     }
 }

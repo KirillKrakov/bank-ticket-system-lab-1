@@ -2,6 +2,7 @@ package com.example.bankticketsystem.controller;
 
 import com.example.bankticketsystem.dto.ApplicationCreateRequest;
 import com.example.bankticketsystem.dto.ApplicationDto;
+import com.example.bankticketsystem.dto.ApplicationHistoryDto;
 import com.example.bankticketsystem.dto.StatusChangeRequest;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.model.entity.Application;
@@ -74,14 +75,6 @@ public class ApplicationController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Смена статуса заявки.
-     * Теперь принимает actorId как query-param, вместо Principal/PreAuthorize.
-     *
-     * Пример:
-     * POST /api/v1/applications/{id}/status?actorId=<actor-uuid>
-     * Body: {"status":"APPROVED"}
-     */
     @PostMapping("/{id}/status")
     @Transactional
     public ResponseEntity<ApplicationDto> changeStatus(
@@ -118,5 +111,29 @@ public class ApplicationController {
         // выполняем смену статуса в сервисе
         ApplicationDto updated = applicationService.changeStatus(id, req.getStatus(), current.getId());
         return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * DELETE /api/v1/applications/{id}?actorId={actorId}
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteApplication(@PathVariable("id") UUID id,
+                                                  @RequestParam("actorId") UUID actorId) {
+        if (actorId == null) throw new BadRequestException("actorId is required");
+
+        applicationService.deleteApplication(id, actorId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * GET /api/v1/applications/{id}/history?actorId={actorId}
+     */
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<ApplicationHistoryDto>> getHistory(@PathVariable("id") UUID id,
+                                                                  @RequestParam("actorId") UUID actorId) {
+        if (actorId == null) throw new BadRequestException("actorId is required");
+
+        List<ApplicationHistoryDto> list = applicationService.listHistory(id, actorId);
+        return ResponseEntity.ok(list);
     }
 }

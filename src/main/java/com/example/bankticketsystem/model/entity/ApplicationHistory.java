@@ -51,6 +51,6 @@ public class ApplicationHistory {
     public UserRole getChangedBy() { return changedBy; }
     public void setChangedBy(UserRole changedBy) { this.changedBy = changedBy; }
 
-    public Instant getChangedAt(Instant now) { return changedAt; }
+    public Instant getChangedAt() { return changedAt; }
     public void setChangedAt(Instant changedAt) { this.changedAt = changedAt; }
 }
