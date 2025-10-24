@@ -48,4 +48,27 @@ public class ProductController {
         ProductDto dto = productService.get(id);
         return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
     }
+
+    /**
+     * PUT /api/v1/products/{id}?actorId={actorId}
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<ProductDto> updateProduct(@PathVariable("id") UUID id,
+                                                    @Valid @RequestBody ProductCreateRequest req,
+                                                    @RequestParam("actorId") UUID actorId) {
+        if (actorId == null) throw new BadRequestException("actorId required");
+        ProductDto dto = productService.updateProduct(id, req, actorId);
+        return ResponseEntity.ok(dto);
+    }
+
+    /**
+     * DELETE /api/v1/products/{id}?actorId={actorId}
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProduct(@PathVariable("id") UUID id,
+                                              @RequestParam("actorId") UUID actorId) {
+        if (actorId == null) throw new BadRequestException("actorId required");
+        productService.deleteProduct(id, actorId);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -75,7 +75,10 @@ public class ApplicationController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{id}/status")
+    /**
+     * POST /api/v1/applications/{id}/status?actorId={actorId}
+     */
+    @PutMapping("/{id}/status")
     @Transactional
     public ResponseEntity<ApplicationDto> changeStatus(
             @PathVariable("id") UUID id,
