@@ -48,4 +48,18 @@ public class ApplicationController {
         ApplicationDto dto = applicationService.get(id);
         return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
     }
+
+    @GetMapping("/stream")
+    public ResponseEntity<List<ApplicationDto>> stream(@RequestParam(required = false) String cursor,
+                                                       @RequestParam(required = false, defaultValue = "20") int limit) {
+        if (limit > 50) throw new BadRequestException("limit cannot be greater than 50");
+        var list = applicationService.stream(cursor, limit);
+        return ResponseEntity.ok(list);
+    }
+
+    @PostMapping("/{id}/tags")
+    public ResponseEntity<Void> addTags(@PathVariable UUID id, @RequestBody List<String> tags) {
+        applicationService.attachTags(id, tags);
+        return ResponseEntity.noContent().build();
+    }
 }

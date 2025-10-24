@@ -12,6 +12,7 @@ public class ApplicationDto {
     private ApplicationStatus status;
     private Instant createdAt;
     private List<DocumentDto> documents;
+    private List<String> tags;
 
     // getters/setters
     public UUID getId() { return id; }
@@ -31,4 +32,7 @@ public class ApplicationDto {
 
     public List<DocumentDto> getDocuments() { return documents; }
     public void setDocuments(List<DocumentDto> documents) { this.documents = documents; }
+
+    public List<String> getTags() { return tags; }
+    public void setTags(List<String> tags) { this.tags = tags; }
 }

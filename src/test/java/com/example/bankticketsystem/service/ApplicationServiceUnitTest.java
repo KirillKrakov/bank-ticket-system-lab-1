@@ -27,6 +27,7 @@ public class ApplicationServiceUnitTest {
         ProductRepository prodRepo = Mockito.mock(ProductRepository.class);
         DocumentRepository docRepo = Mockito.mock(DocumentRepository.class);
         ApplicationHistoryRepository histRepo = Mockito.mock(ApplicationHistoryRepository.class);
+        TagService tagService = Mockito.mock(TagService.class);
 
         User user = new User();
         user.setId(UUID.randomUUID());
@@ -42,7 +43,7 @@ public class ApplicationServiceUnitTest {
         when(appRepo.save(any())).thenAnswer(i -> i.getArgument(0));
         when(histRepo.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        ApplicationService svc = new ApplicationService(appRepo, userRepo, prodRepo, docRepo, histRepo);
+        ApplicationService svc = new ApplicationService(appRepo, userRepo, prodRepo, docRepo, histRepo, tagService);
 
         ApplicationCreateRequest req = new ApplicationCreateRequest();
         req.setApplicantId(user.getId());
@@ -66,10 +67,11 @@ public class ApplicationServiceUnitTest {
         ProductRepository prodRepo = Mockito.mock(ProductRepository.class);
         DocumentRepository docRepo = Mockito.mock(DocumentRepository.class);
         ApplicationHistoryRepository histRepo = Mockito.mock(ApplicationHistoryRepository.class);
+        TagService tagService = Mockito.mock(TagService.class);
 
         when(userRepo.findById(any())).thenReturn(Optional.empty());
 
-        ApplicationService svc = new ApplicationService(appRepo, userRepo, prodRepo, docRepo, histRepo);
+        ApplicationService svc = new ApplicationService(appRepo, userRepo, prodRepo, docRepo, histRepo, tagService);
 
         ApplicationCreateRequest req = new ApplicationCreateRequest();
         req.setApplicantId(UUID.randomUUID());
@@ -86,6 +88,7 @@ public class ApplicationServiceUnitTest {
         ProductRepository prodRepo = Mockito.mock(ProductRepository.class);
         DocumentRepository docRepo = Mockito.mock(DocumentRepository.class);
         ApplicationHistoryRepository histRepo = Mockito.mock(ApplicationHistoryRepository.class);
+        TagService tagService = Mockito.mock(TagService.class);
 
         User user = new User();
         user.setId(UUID.randomUUID());
@@ -101,7 +104,7 @@ public class ApplicationServiceUnitTest {
         when(appRepo.save(any())).thenAnswer(i -> i.getArgument(0));
         when(histRepo.save(any())).thenThrow(new RuntimeException("DB error on history"));
 
-        ApplicationService svc = new ApplicationService(appRepo, userRepo, prodRepo, docRepo, histRepo);
+        ApplicationService svc = new ApplicationService(appRepo, userRepo, prodRepo, docRepo, histRepo, tagService);
 
         ApplicationCreateRequest req = new ApplicationCreateRequest();
         req.setApplicantId(user.getId());

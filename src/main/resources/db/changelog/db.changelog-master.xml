@@ -11,4 +11,7 @@
     <include file="db/changelog/changes/003-create-application-table.xml"/>
     <include file="db/changelog/changes/004-create-document-table.xml"/>
     <include file="db/changelog/changes/005-create-application-history-table.xml"/>
+    <include file="db/changelog/changes/006-create-tag-table.xml"/>
+    <include file="db/changelog/changes/007-create-application-tag-table.xml"/>
+    <include file="db/changelog/changes/008-create-user-product-assignment.xml"/>
 </databaseChangeLog>

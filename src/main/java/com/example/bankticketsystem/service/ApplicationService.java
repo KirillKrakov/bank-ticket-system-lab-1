@@ -4,6 +4,8 @@ import com.example.bankticketsystem.dto.*;
 import com.example.bankticketsystem.model.entity.*;
 import com.example.bankticketsystem.model.enums.ApplicationStatus;
 import com.example.bankticketsystem.repository.*;
+import com.example.bankticketsystem.service.TagService;
+import com.example.bankticketsystem.util.CursorUtil;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.exception.NotFoundException;
 import org.springframework.stereotype.Service;
@@ -22,17 +24,20 @@ public class ApplicationService {
     private final ProductRepository productRepository;
     private final DocumentRepository documentRepository;
     private final ApplicationHistoryRepository historyRepository;
+    private final TagService tagService;
 
     public ApplicationService(ApplicationRepository applicationRepository,
                               UserRepository userRepository,
                               ProductRepository productRepository,
                               DocumentRepository documentRepository,
-                              ApplicationHistoryRepository historyRepository) {
+                              ApplicationHistoryRepository historyRepository,
+                              TagService tagService) {
         this.applicationRepository = applicationRepository;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
         this.documentRepository = documentRepository;
         this.historyRepository = historyRepository;
+        this.tagService = tagService;
     }
 
     @Transactional
@@ -104,7 +109,37 @@ public class ApplicationService {
             dd.setStoragePath(d.getStoragePath());
             return dd;
         }).collect(Collectors.toList());
+        List<String> tagNames = app.getTags() == null ? List.of() :
+                app.getTags().stream().map(Tag::getName).toList();
         dto.setDocuments(docs);
+        dto.setTags(tagNames);
         return dto;
+    }
+
+    // keyset stream
+    public List<ApplicationDto> stream(String cursor, int limit) {
+        CursorUtil.Decoded dec = CursorUtil.decode(cursor);
+        Instant ts = dec == null ? null : dec.timestamp;
+        UUID id = dec == null ? null : dec.id;
+        int capped = Math.min(limit, 50);
+        List<Application> apps = applicationRepository.findByKeyset(ts, id, capped);
+        return apps.stream().map(this::toDto).collect(Collectors.toList());
+    }
+
+    // attach tags to application
+    @Transactional
+    public void attachTags(UUID applicationId, List<String> tagNames) {
+        Application app = applicationRepository.findById(applicationId).orElseThrow(() -> new NotFoundException("Application not found"));
+        for (String name : tagNames) {
+            Tag t = tagService.createIfNotExists(name);
+            app.getTags().add(t);
+        }
+        applicationRepository.save(app);
+    }
+
+    public Page<ApplicationDto> listByTag(String tagName, int page, int size) {
+        Pageable p = PageRequest.of(page, size);
+        Page<Application> apps = applicationRepository.findByTags_Name(tagName, p);
+        return apps.map(this::toDto);
     }
 }

@@ -40,6 +40,14 @@ public class Application {
     @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ApplicationHistory> history = new ArrayList<>();
 
+    @ManyToMany
+    @JoinTable(
+            name = "application_tag",
+            joinColumns = @JoinColumn(name = "application_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private Set<Tag> tags = new HashSet<>();
+
     public Application() {}
 
     // getters / setters
@@ -70,4 +78,7 @@ public class Application {
 
     public List<ApplicationHistory> getHistory() { return history; }
     public void setHistory(List<ApplicationHistory> history) { this.history = history; }
+
+    public Set<Tag> getTags() { return tags; }
+    public void setTags(Set<Tag> tags) { this.tags = tags; }
 }
