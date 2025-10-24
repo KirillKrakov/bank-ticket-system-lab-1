@@ -9,4 +9,5 @@ import java.util.UUID;
 public interface UserProductAssignmentRepository extends JpaRepository<UserProductAssignment, UUID> {
     List<UserProductAssignment> findByUserId(UUID userId);
     List<UserProductAssignment> findByProductId(UUID productId);
+    long countByUserId(UUID userId);
 }

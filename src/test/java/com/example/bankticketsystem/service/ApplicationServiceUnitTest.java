@@ -43,7 +43,9 @@ public class ApplicationServiceUnitTest {
         when(appRepo.save(any())).thenAnswer(i -> i.getArgument(0));
         when(histRepo.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        ApplicationService svc = new ApplicationService(appRepo, userRepo, prodRepo, docRepo, histRepo, tagService);
+        ApplicationHistoryRepository applicationHistoryRepository = Mockito.mock(ApplicationHistoryRepository.class);
+
+        ApplicationService svc = new ApplicationService(appRepo, userRepo, prodRepo, docRepo, histRepo, tagService, applicationHistoryRepository);
 
         ApplicationCreateRequest req = new ApplicationCreateRequest();
         req.setApplicantId(user.getId());
@@ -71,7 +73,9 @@ public class ApplicationServiceUnitTest {
 
         when(userRepo.findById(any())).thenReturn(Optional.empty());
 
-        ApplicationService svc = new ApplicationService(appRepo, userRepo, prodRepo, docRepo, histRepo, tagService);
+        ApplicationHistoryRepository applicationHistoryRepository = Mockito.mock(ApplicationHistoryRepository.class);
+
+        ApplicationService svc = new ApplicationService(appRepo, userRepo, prodRepo, docRepo, histRepo, tagService, applicationHistoryRepository);
 
         ApplicationCreateRequest req = new ApplicationCreateRequest();
         req.setApplicantId(UUID.randomUUID());
@@ -103,8 +107,9 @@ public class ApplicationServiceUnitTest {
 
         when(appRepo.save(any())).thenAnswer(i -> i.getArgument(0));
         when(histRepo.save(any())).thenThrow(new RuntimeException("DB error on history"));
+        ApplicationHistoryRepository applicationHistoryRepository = Mockito.mock(ApplicationHistoryRepository.class);
 
-        ApplicationService svc = new ApplicationService(appRepo, userRepo, prodRepo, docRepo, histRepo, tagService);
+        ApplicationService svc = new ApplicationService(appRepo, userRepo, prodRepo, docRepo, histRepo, tagService, applicationHistoryRepository);
 
         ApplicationCreateRequest req = new ApplicationCreateRequest();
         req.setApplicantId(user.getId());

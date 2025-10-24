@@ -10,4 +10,7 @@ import java.util.UUID;
 public interface ApplicationRepository extends JpaRepository<Application, UUID>, ApplicationRepositoryCustom {
     Page<Application> findAll(Pageable pageable);
     Page<Application> findByTags_Name(String tagName, Pageable pageable);
+    long countByApplicantId(UUID applicantId);
+    long countByProductId(UUID productId);
+
 }

@@ -2,12 +2,14 @@ package com.example.bankticketsystem.service;
 
 import com.example.bankticketsystem.dto.UserCreateRequest;
 import com.example.bankticketsystem.dto.UserDto;
+import com.example.bankticketsystem.exception.ConflictException;
 import com.example.bankticketsystem.model.entity.User;
+import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.UserRepository;
-import com.example.bankticketsystem.exception.BadRequestException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.*;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -17,25 +19,36 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
+    @Transactional
     public UserDto create(UserCreateRequest req) {
-        if (userRepository.existsByEmail(req.getEmail())) {
-            throw new BadRequestException("Email already in use");
+        String username = req.getUsername().trim();
+        String email = req.getEmail().trim().toLowerCase();
+
+        if (userRepository.existsByUsername(username)) {
+            throw new ConflictException("Username already in use");
         }
-        User user = new User();
-        user.setId(UUID.randomUUID());
-        user.setUsername(req.getUsername());
-        user.setEmail(req.getEmail());
-        user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
-        user.setRoles("CLIENT"); // default role for now
-        user.setCreatedAt(Instant.now());
-        userRepository.save(user);
-        return toDto(user);
+        if (userRepository.existsByEmail(email)) {
+            throw new ConflictException("Email already in use");
+        }
+
+        User u = new User();
+        u.setId(UUID.randomUUID());
+        u.setUsername(username);
+        u.setEmail(email);
+        u.setPasswordHash(passwordEncoder.encode(req.getPassword()));
+        u.setRole(UserRole.ROLE_USER); // default
+        u.setCreatedAt(Instant.now());
+        userRepository.save(u);
+
+        return toDto(u);
     }
 
     public Page<UserDto> list(int page, int size) {
@@ -48,12 +61,13 @@ public class UserService {
         return userRepository.findById(id).map(this::toDto);
     }
 
-    private UserDto toDto(User user) {
-        UserDto d = new UserDto();
-        d.setId(user.getId());
-        d.setUsername(user.getUsername());
-        d.setEmail(user.getEmail());
-        d.setCreatedAt(user.getCreatedAt());
-        return d;
+    public UserDto toDto(User u) {
+        UserDto dto = new UserDto();
+        dto.setId(u.getId());
+        dto.setUsername(u.getUsername());
+        dto.setEmail(u.getEmail());
+        dto.setRole(u.getRole());
+        dto.setCreatedAt(u.getCreatedAt());
+        return dto;
     }
 }

@@ -20,7 +20,7 @@
             <column name="password_hash" type="varchar(255)">
                 <constraints nullable="false"/>
             </column>
-            <column name="roles" type="varchar(200)"/>
+            <column name="role" type="varchar(50)" defaultValue="ROLE_USER"/>
             <column name="created_at" type="timestamp with time zone">
                 <constraints nullable="false"/>
             </column>

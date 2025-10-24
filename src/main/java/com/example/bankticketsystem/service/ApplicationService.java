@@ -3,11 +3,13 @@ package com.example.bankticketsystem.service;
 import com.example.bankticketsystem.dto.*;
 import com.example.bankticketsystem.model.entity.*;
 import com.example.bankticketsystem.model.enums.ApplicationStatus;
+import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.*;
 import com.example.bankticketsystem.service.TagService;
 import com.example.bankticketsystem.util.CursorUtil;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.exception.NotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.*;
@@ -25,19 +27,22 @@ public class ApplicationService {
     private final DocumentRepository documentRepository;
     private final ApplicationHistoryRepository historyRepository;
     private final TagService tagService;
+    private final ApplicationHistoryRepository applicationHistoryRepository;
 
     public ApplicationService(ApplicationRepository applicationRepository,
                               UserRepository userRepository,
                               ProductRepository productRepository,
                               DocumentRepository documentRepository,
                               ApplicationHistoryRepository historyRepository,
-                              TagService tagService) {
+                              TagService tagService,
+                              ApplicationHistoryRepository applicationHistoryRepository) {
         this.applicationRepository = applicationRepository;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
         this.documentRepository = documentRepository;
         this.historyRepository = historyRepository;
         this.tagService = tagService;
+        this.applicationHistoryRepository = applicationHistoryRepository;
     }
 
     @Transactional
@@ -78,7 +83,7 @@ public class ApplicationService {
         hist.setApplication(app);
         hist.setOldStatus(null);
         hist.setNewStatus(app.getStatus());
-        hist.setChangedBy(applicant.getUsername());
+        hist.setChangedBy(applicant.getRole());
         hist.setChangedAt(Instant.now());
         historyRepository.save(hist);
 
@@ -92,6 +97,11 @@ public class ApplicationService {
 
     public ApplicationDto get(UUID id) {
         return applicationRepository.findById(id).map(this::toDto).orElse(null);
+    }
+
+    public Application getEntity(UUID id) {
+        return applicationRepository.findById(id)
+                .orElseThrow(() -> new BadRequestException("Application not found: " + id));
     }
 
     private ApplicationDto toDto(Application app) {
@@ -141,5 +151,53 @@ public class ApplicationService {
         Pageable p = PageRequest.of(page, size);
         Page<Application> apps = applicationRepository.findByTags_Name(tagName, p);
         return apps.map(this::toDto);
+    }
+
+    @Transactional
+    public ApplicationDto changeStatus(UUID id, ApplicationStatus newStatus, UUID performedById) {
+        if (newStatus == null) throw new BadRequestException("Status must be provided");
+
+        Application app = getEntity(id);
+
+        User performer = userRepository.findById(performedById)
+                .orElseThrow(() -> new BadRequestException("Performer not found: " + performedById));
+
+        // business rule: manager cannot change status of his own application
+        if (performer.getRole() == UserRole.ROLE_MANAGER) {
+            if (app.getApplicant() != null && app.getApplicant().getId().equals(performer.getId())) {
+                throw new AccessDeniedException("Managers cannot change status of their own applications");
+            }
+        }
+
+        ApplicationStatus oldStatus = app.getStatus();
+        if (oldStatus == newStatus) {
+            // ничего не меняется — возвращаем DTO
+            return toDto(app);
+        }
+
+        try {
+            // смена статуса
+            app.setStatus(newStatus);
+            app.setUpdatedAt(Instant.now());
+            applicationRepository.save(app);
+
+            // запись истории
+            ApplicationHistory hist = new ApplicationHistory();
+            hist.setId(UUID.randomUUID());
+            hist.setApplication(app);
+            hist.setOldStatus(oldStatus);
+            hist.setNewStatus(newStatus);
+            hist.setChangedBy(performer.getRole());
+            hist.setChangedAt(Instant.now());
+
+            applicationHistoryRepository.save(hist);
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            // логируем root cause в консоль (и возвращаем в тело ответа для отладки)
+            Throwable root = ex.getRootCause() != null ? ex.getRootCause() : ex;
+            root.printStackTrace();
+            throw new com.example.bankticketsystem.exception.ConflictException("DB constraint violated: " + root.toString());
+        }
+
+        return toDto(app);
     }
 }

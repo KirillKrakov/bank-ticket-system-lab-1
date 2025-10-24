@@ -1,6 +1,7 @@
 package com.example.bankticketsystem.model.entity;
 
 import com.example.bankticketsystem.model.enums.ApplicationStatus;
+import com.example.bankticketsystem.model.enums.UserRole;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
@@ -25,8 +26,9 @@ public class ApplicationHistory {
     @Column(name = "new_status", length = 50)
     private ApplicationStatus newStatus;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "changed_by", length = 100)
-    private String changedBy;
+    private UserRole changedBy;
 
     @Column(name = "changed_at", nullable = false)
     private Instant changedAt;
@@ -46,9 +48,9 @@ public class ApplicationHistory {
     public ApplicationStatus getNewStatus() { return newStatus; }
     public void setNewStatus(ApplicationStatus newStatus) { this.newStatus = newStatus; }
 
-    public String getChangedBy() { return changedBy; }
-    public void setChangedBy(String changedBy) { this.changedBy = changedBy; }
+    public UserRole getChangedBy() { return changedBy; }
+    public void setChangedBy(UserRole changedBy) { this.changedBy = changedBy; }
 
-    public Instant getChangedAt() { return changedAt; }
+    public Instant getChangedAt(Instant now) { return changedAt; }
     public void setChangedAt(Instant changedAt) { this.changedAt = changedAt; }
 }

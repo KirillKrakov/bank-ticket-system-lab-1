@@ -1,8 +1,11 @@
 package com.example.bankticketsystem.model.entity;
 
+import com.example.bankticketsystem.model.enums.UserRole;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "app_user")
@@ -21,8 +24,9 @@ public class User {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @Column(name = "roles", length = 200)
-    private String roles; // simple CSV for now (e.g. "CLIENT,MANAGER")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 50)
+    private UserRole role;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -50,8 +54,8 @@ public class User {
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
 
-    public String getRoles() { return roles; }
-    public void setRoles(String roles) { this.roles = roles; }
+    public UserRole getRole() { return role; }
+    public void setRole(UserRole roles) { this.role = roles; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
