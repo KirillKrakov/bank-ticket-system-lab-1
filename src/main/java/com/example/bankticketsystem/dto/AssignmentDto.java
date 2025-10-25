@@ -10,7 +10,7 @@ public class AssignmentDto {
     private UUID productId;
     private AssignmentRole role;
     private Instant assignedAt;
-    // getters/setters
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 

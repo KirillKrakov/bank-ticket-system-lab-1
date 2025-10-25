@@ -8,7 +8,7 @@ public class AssignmentCreateRequest {
     @NotNull private UUID userId;
     @NotNull private UUID productId;
     @NotNull private AssignmentRole role;
-    // getters/setters
+
     public UUID getUserId() { return userId; }
     public void setUserId(UUID userId) { this.userId = userId; }
 

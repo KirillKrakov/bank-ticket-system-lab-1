@@ -60,7 +60,6 @@ public class AssignmentIntegrationTest {
         assertNotNull(dto);
         assertEquals(AssignmentRole.RESELLER, dto.getRole());
 
-        // query by user
         ResponseEntity<AssignmentDto[]> list = rest.getForEntity("/api/v1/assignments?userId=" + u.getId(), AssignmentDto[].class);
         assertEquals(HttpStatus.OK, list.getStatusCode());
         AssignmentDto[] arr = list.getBody();

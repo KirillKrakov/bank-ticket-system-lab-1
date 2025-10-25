@@ -47,7 +47,6 @@ public class ApplicationService {
 
     @Transactional
     public ApplicationDto createApplication(ApplicationCreateRequest req) {
-        // validate applicant
         User applicant = userRepository.findById(req.getApplicantId())
                 .orElseThrow(() -> new NotFoundException("Applicant not found"));
 
@@ -61,7 +60,6 @@ public class ApplicationService {
         app.setStatus(ApplicationStatus.SUBMITTED);
         app.setCreatedAt(Instant.now());
 
-        // handle documents metadata
         List<DocumentCreateRequest> docsReq = req.getDocuments() == null ? List.of() : req.getDocuments();
         List<Document> docs = new ArrayList<>();
         for (DocumentCreateRequest dreq : docsReq) {
@@ -77,7 +75,6 @@ public class ApplicationService {
 
         applicationRepository.save(app); // cascades documents due to cascade ALL
 
-        // write history
         ApplicationHistory hist = new ApplicationHistory();
         hist.setId(UUID.randomUUID());
         hist.setApplication(app);
@@ -126,7 +123,6 @@ public class ApplicationService {
         return dto;
     }
 
-    // keyset stream
     public List<ApplicationDto> stream(String cursor, int limit) {
         CursorUtil.Decoded dec = CursorUtil.decode(cursor);
         Instant ts = dec == null ? null : dec.timestamp;
@@ -136,7 +132,6 @@ public class ApplicationService {
         return apps.stream().map(this::toDto).collect(Collectors.toList());
     }
 
-    // attach tags to application
     @Transactional
     public void attachTags(UUID applicationId, List<String> tagNames) {
         Application app = applicationRepository.findById(applicationId).orElseThrow(() -> new NotFoundException("Application not found"));
@@ -162,7 +157,6 @@ public class ApplicationService {
         User performer = userRepository.findById(performedById)
                 .orElseThrow(() -> new BadRequestException("Performer not found: " + performedById));
 
-        // business rule: manager cannot change status of his own application
         if (performer.getRole() == UserRole.ROLE_MANAGER) {
             if (app.getApplicant() != null && app.getApplicant().getId().equals(performer.getId())) {
                 throw new BadRequestException("Managers cannot change status of their own applications");
@@ -171,17 +165,14 @@ public class ApplicationService {
 
         ApplicationStatus oldStatus = app.getStatus();
         if (oldStatus == newStatus) {
-            // ничего не меняется — возвращаем DTO
             return toDto(app);
         }
 
         try {
-            // смена статуса
             app.setStatus(newStatus);
             app.setUpdatedAt(Instant.now());
             applicationRepository.save(app);
 
-            // запись истории
             ApplicationHistory hist = new ApplicationHistory();
             hist.setId(UUID.randomUUID());
             hist.setApplication(app);
@@ -192,7 +183,6 @@ public class ApplicationService {
 
             applicationHistoryRepository.save(hist);
         } catch (org.springframework.dao.DataIntegrityViolationException ex) {
-            // логируем root cause в консоль (и возвращаем в тело ответа для отладки)
             Throwable root = ex.getRootCause() != null ? ex.getRootCause() : ex;
             root.printStackTrace();
             throw new com.example.bankticketsystem.exception.ConflictException("DB constraint violated: " + root.toString());
@@ -217,7 +207,6 @@ public class ApplicationService {
             applicationRepository.delete(app);
 
         } catch (Exception ex) {
-            // если возникли DB constraints — оборачиваем в понятное исключение
             throw new ConflictException("Failed to delete application (DB constraint): " + ex.getMessage());
         }
     }

@@ -37,11 +37,8 @@ public class User {
     @Version
     private Long version;
 
-    // Constructors, getters, setters
-
     public User() {}
 
-    // Getters and setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 

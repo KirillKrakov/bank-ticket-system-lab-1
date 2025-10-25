@@ -76,7 +76,7 @@ public class ApplicationController {
     }
 
     /**
-     * POST /api/v1/applications/{id}/status?actorId={actorId}
+     * PUT /api/v1/applications/{id}/status?actorId={actorId}
      */
     @PutMapping("/{id}/status")
     @Transactional
@@ -85,33 +85,28 @@ public class ApplicationController {
             @RequestBody StatusChangeRequest req,
             @RequestParam("actorId") UUID actorId) {
 
-        // basic validations
         if (req == null || req.getStatus() == null) {
             return ResponseEntity.badRequest().build();
         }
 
-        // получаем актёра (пользователя, выполняющего операцию)
         User current = userRepository.findById(actorId).orElse(null);
         if (current == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        // разрешаем только ADMIN или MANAGER
         if (current.getRole() != UserRole.ROLE_ADMIN && current.getRole() != UserRole.ROLE_MANAGER) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        Application app = applicationService.getEntity(id); // метод, возвращающий entity
+        Application app = applicationService.getEntity(id);
         if (app == null) return ResponseEntity.notFound().build();
 
-        // проверка прав менеджера: менеджер не может менять статус своей же заявки
         if (current.getRole() == UserRole.ROLE_MANAGER) {
             if (app.getApplicant() != null && app.getApplicant().getId().equals(current.getId())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
         }
 
-        // выполняем смену статуса в сервисе
         ApplicationDto updated = applicationService.changeStatus(id, req.getStatus(), current.getId());
         return ResponseEntity.ok(updated);
     }

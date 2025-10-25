@@ -31,7 +31,6 @@ public class UserProductAssignment {
 
     public UserProductAssignment() {}
 
-    // getters/setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public User getUser() { return user; }

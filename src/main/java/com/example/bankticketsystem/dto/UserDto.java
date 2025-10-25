@@ -12,7 +12,6 @@ public class UserDto {
     private UserRole role;
     private Instant createdAt;
 
-    // getters/setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public String getUsername() { return username; }

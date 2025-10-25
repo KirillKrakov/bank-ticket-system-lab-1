@@ -19,10 +19,6 @@ public class TagService {
         this.repo = repo;
     }
 
-    /**
-     * Create tag if missing (returns existing if present).
-     * Returns the entity (useful for internal operations).
-     */
     @Transactional
     public Tag createIfNotExists(String name) {
         return repo.findByName(name)
@@ -34,10 +30,6 @@ public class TagService {
                 });
     }
 
-    /**
-     * List all tags as DTOs.
-     * Used by controller to return a safe view.
-     */
     @Transactional(readOnly = true)
     public List<TagDto> listAll() {
         return repo.findAll().stream()

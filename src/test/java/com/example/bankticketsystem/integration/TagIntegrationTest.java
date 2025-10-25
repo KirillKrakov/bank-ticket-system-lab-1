@@ -47,11 +47,9 @@ public class TagIntegrationTest {
 
     @Test
     void attachTags_and_listByTag() {
-        // prepare user + product
         User u = new User(); u.setId(UUID.randomUUID()); u.setUsername("taguser"); u.setEmail("t@example.com"); u.setPasswordHash("noop"); u.setCreatedAt(java.time.Instant.now()); userRepository.save(u);
         Product p = new Product(); p.setId(UUID.randomUUID()); p.setName("tagProd"); productRepository.save(p);
 
-        // create application
         ApplicationCreateRequest acr = new ApplicationCreateRequest();
         acr.setApplicantId(u.getId());
         acr.setProductId(p.getId());
@@ -61,20 +59,17 @@ public class TagIntegrationTest {
         ApplicationDto app = createResp.getBody();
         assertNotNull(app);
 
-        // attach tags
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> ent = new HttpEntity<>("[\"urgent\",\"vip\"]", headers);
         ResponseEntity<Void> attachResp = rest.postForEntity("/api/v1/applications/" + app.getId() + "/tags", ent, Void.class);
         assertEquals(HttpStatus.NO_CONTENT, attachResp.getStatusCode());
 
-        // list apps by tag (urgent)
         ResponseEntity<ApplicationDto[]> listResp = rest.getForEntity("/api/v1/tags/urgent/applications?page=0&size=10", ApplicationDto[].class);
         assertEquals(HttpStatus.OK, listResp.getStatusCode());
         ApplicationDto[] arr = listResp.getBody();
         assertNotNull(arr);
         assertTrue(arr.length >= 1);
-        // ensure the returned app contains tag in its dto
         boolean found = false;
         for (ApplicationDto a : arr) {
             if (a.getId().equals(app.getId())) {

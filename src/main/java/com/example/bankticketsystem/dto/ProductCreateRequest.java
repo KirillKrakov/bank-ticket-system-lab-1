@@ -11,7 +11,6 @@ public class ProductCreateRequest {
     @Size(max = 1000)
     private String description;
 
-    // getters/setters
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 

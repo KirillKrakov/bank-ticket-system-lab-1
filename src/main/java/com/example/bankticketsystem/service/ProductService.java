@@ -64,9 +64,6 @@ public class ProductService {
         return d;
     }
 
-    /**
-     * Update product name/description. Allowed for ADMIN or PRODUCT_OWNER assignment.
-     */
     @Transactional
     public ProductDto updateProduct(UUID productId, ProductCreateRequest req, UUID actorId) {
         if (req == null) throw new BadRequestException("Request is required");
@@ -77,7 +74,6 @@ public class ProductService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BadRequestException("Product not found: " + productId));
 
-        // check permission: admin OR owner on product
         boolean isAdmin = actor.getRole() == UserRole.ROLE_ADMIN;
         boolean isOwner = assignmentRepository.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
 
@@ -85,7 +81,6 @@ public class ProductService {
             throw new ConflictException("Only ADMIN or PRODUCT_OWNER can update product");
         }
 
-        // apply allowed changes
         product.setName(req.getName());
         product.setDescription(req.getDescription());
         Product saved = productRepository.save(product);
@@ -108,16 +103,13 @@ public class ProductService {
         }
 
         try {
-            // find all applications for this product and delete them one-by-one to respect cascade on application -> history/documents
             List<Application> apps = applicationRepository.findByProductId(productId);
             for (Application a : apps) {
                 applicationRepository.delete(a); // JPA will cascade delete history/documents (you have cascade = ALL there)
             }
 
-            // delete assignments related to this product (clean up)
             assignmentRepository.deleteByProductId(productId);
 
-            // finally delete product
             productRepository.delete(product);
         } catch (Exception ex) {
             throw new ConflictException("Failed to delete product and its applications: " + ex.getMessage());

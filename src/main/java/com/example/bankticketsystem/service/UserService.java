@@ -2,6 +2,7 @@ package com.example.bankticketsystem.service;
 
 import com.example.bankticketsystem.dto.UserCreateRequest;
 import com.example.bankticketsystem.dto.UserDto;
+import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.exception.ConflictException;
 import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.UserRole;
@@ -69,5 +70,44 @@ public class UserService {
         dto.setRole(u.getRole());
         dto.setCreatedAt(u.getCreatedAt());
         return dto;
+    }
+
+    @Transactional
+    public UserDto updateUser(UUID id, UserCreateRequest req) {
+        User existing = userRepository.findById(id)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+
+        existing.setUsername(req.getUsername());
+        existing.setEmail(req.getEmail());
+        existing.setPasswordHash(passwordEncoder.encode(req.getPassword()));
+        existing.setUpdatedAt(Instant.now());
+        userRepository.save(existing);
+        return toDto(existing);
+    }
+
+    @Transactional
+    public void deleteUser(UUID id) {
+        User existing = userRepository.findById(id)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+
+        userRepository.delete(existing);
+    }
+
+    @Transactional
+    public void promoteToManager(UUID id) {
+        User u = userRepository.findById(id)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+        if (u.getRole() == UserRole.ROLE_MANAGER) return;
+        u.setRole(UserRole.ROLE_MANAGER);
+        userRepository.save(u);
+    }
+
+    @Transactional
+    public void demoteToUser(UUID id) {
+        User u = userRepository.findById(id)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+        if (u.getRole() == UserRole.ROLE_USER) return;
+        u.setRole(UserRole.ROLE_USER);
+        userRepository.save(u);
     }
 }
