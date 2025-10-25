@@ -54,7 +54,6 @@ class ApplicationServiceDeleteTest {
     @Test
     void adminDeletesSuccessfully() {
         when(userRepo.findById(adminId)).thenReturn(Optional.of(admin));
-        // Do nothing on delete calls — verify they are invoked
         doNothing().when(appRepo).delete(application);
 
         applicationService.deleteApplication(appId, adminId);

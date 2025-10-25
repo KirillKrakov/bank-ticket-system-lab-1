@@ -21,7 +21,6 @@ public class RoleEntity {
 
     public RoleEntity() {}
 
-    // getters/setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public UserRole getName() { return name; }

@@ -53,7 +53,6 @@ public class ApplicationHistoryIntegrationTest {
 
     @Test
     void createApplication_createsHistoryEntry() {
-        // prepare user+product
         var user = new com.example.bankticketsystem.model.entity.User();
         user.setId(UUID.randomUUID());
         user.setUsername("histuser");
@@ -76,7 +75,6 @@ public class ApplicationHistoryIntegrationTest {
         ApplicationDto dto = resp.getBody();
         assertNotNull(dto);
 
-        // query history table for that application
         List<ApplicationHistory> list = historyRepository.findAll();
         boolean found = list.stream().anyMatch(h -> h.getApplication().getId().equals(dto.getId()));
         assertTrue(found, "Expected application_history to contain entry for created application");

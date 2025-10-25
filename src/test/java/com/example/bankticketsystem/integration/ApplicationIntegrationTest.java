@@ -49,7 +49,6 @@ public class ApplicationIntegrationTest {
 
     @Test
     void createApplicationWithDocument_success() {
-        // create user directly in repo
         User u = new User();
         u.setId(UUID.randomUUID());
         u.setUsername("intuser");
@@ -58,7 +57,6 @@ public class ApplicationIntegrationTest {
         u.setCreatedAt(java.time.Instant.now());
         userRepository.save(u);
 
-        // create product via repo
         var p = new com.example.bankticketsystem.model.entity.Product();
         p.setId(UUID.randomUUID());
         p.setName("TestProduct");

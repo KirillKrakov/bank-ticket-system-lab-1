@@ -7,7 +7,6 @@ public class ProductDto {
     private String name;
     private String description;
 
-    // getters/setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 

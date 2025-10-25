@@ -9,7 +9,6 @@ public class DocumentCreateRequest {
     private String contentType;
     private String storagePath; // optional for now
 
-    // getters/setters
     public String getFileName() { return fileName; }
     public void setFileName(String fileName) { this.fileName = fileName; }
 

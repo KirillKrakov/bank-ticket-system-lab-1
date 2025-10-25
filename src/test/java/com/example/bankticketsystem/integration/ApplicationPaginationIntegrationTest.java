@@ -54,7 +54,6 @@ public class ApplicationPaginationIntegrationTest {
 
     @Test
     void pagination_sizeLimitEnforced_andPagingWorks() {
-        // create user and product
         User u = new User();
         u.setId(UUID.randomUUID());
         u.setUsername("pguser");
@@ -68,7 +67,6 @@ public class ApplicationPaginationIntegrationTest {
         p.setName("pgprod");
         productRepository.save(p);
 
-        // insert 60 applications via repository
         IntStream.range(0, 60).forEach(i -> {
             var app = new com.example.bankticketsystem.model.entity.Application();
             app.setId(UUID.randomUUID());
@@ -79,11 +77,9 @@ public class ApplicationPaginationIntegrationTest {
             applicationRepository.save(app);
         });
 
-        // size > 50 should return 400
         ResponseEntity<String> bad = rest.getForEntity("/api/v1/applications?page=0&size=100", String.class);
         assertEquals(HttpStatus.BAD_REQUEST, bad.getStatusCode());
 
-        // valid page request
         ResponseEntity<com.example.bankticketsystem.dto.ApplicationDto[]> ok = rest.getForEntity("/api/v1/applications?page=0&size=20", com.example.bankticketsystem.dto.ApplicationDto[].class);
         assertEquals(HttpStatus.OK, ok.getStatusCode());
         assertTrue(Objects.requireNonNull(ok.getBody()).length <= 20);

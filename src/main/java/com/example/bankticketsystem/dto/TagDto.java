@@ -5,7 +5,7 @@ import java.util.UUID;
 public class TagDto {
     private UUID id;
     private String name;
-    // getters/setters
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 

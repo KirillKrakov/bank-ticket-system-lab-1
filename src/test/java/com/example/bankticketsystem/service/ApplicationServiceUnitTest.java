@@ -117,7 +117,6 @@ public class ApplicationServiceUnitTest {
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> svc.createApplication(req));
         assertTrue(ex.getMessage().contains("DB error on history"));
-        // appRepo.save was called before exception (we mocked), rollback behavior is not tested here (unit test).
         verify(appRepo, times(1)).save(any());
         verify(histRepo, times(1)).save(any());
     }
