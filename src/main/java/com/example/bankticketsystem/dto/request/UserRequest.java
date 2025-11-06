@@ -1,21 +1,17 @@
-package com.example.bankticketsystem.dto;
+package com.example.bankticketsystem.dto.request;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public class UserCreateRequest {
+public class UserRequest {
 
-    @NotBlank
-    @Size(max = 100)
+    @Size(min = 1, max = 100)
     private String username;
 
-    @NotBlank
     @Email
-    @Size(max = 255)
+    @Size(min = 1, max = 255)
     private String email;
 
-    @NotBlank
     @Size(min = 8, max = 100)
     private String password;
 
