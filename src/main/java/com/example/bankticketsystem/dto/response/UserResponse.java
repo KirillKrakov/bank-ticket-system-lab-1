@@ -1,11 +1,11 @@
-package com.example.bankticketsystem.dto;
+package com.example.bankticketsystem.dto.response;
 
 import com.example.bankticketsystem.model.enums.UserRole;
 
 import java.time.Instant;
 import java.util.UUID;
 
-public class UserDto {
+public class UserResponse {
     private UUID id;
     private String username;
     private String email;

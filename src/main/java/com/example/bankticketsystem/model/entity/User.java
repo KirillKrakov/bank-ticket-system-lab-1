@@ -4,8 +4,6 @@ import com.example.bankticketsystem.model.enums.UserRole;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
-import java.util.HashSet;
-import java.util.Set;
 
 @Entity
 @Table(name = "app_user")

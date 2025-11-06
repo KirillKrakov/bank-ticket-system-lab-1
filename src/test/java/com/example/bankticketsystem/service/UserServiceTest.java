@@ -1,6 +1,6 @@
 package com.example.bankticketsystem.service;
 
-import com.example.bankticketsystem.dto.UserCreateRequest;
+import com.example.bankticketsystem.dto.request.UserRequest;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.exception.ConflictException;
 import com.example.bankticketsystem.model.entity.User;
@@ -39,7 +39,7 @@ class UserServiceTest {
     // -----------------------
     @Test
     void createUserSuccessCreatesUser() {
-        UserCreateRequest req = new UserCreateRequest();
+        UserRequest req = new UserRequest();
         req.setUsername("alice");
         req.setEmail("alice@example.com");
         req.setPassword("StrongPass123");
@@ -72,7 +72,7 @@ class UserServiceTest {
 
     @Test
     void createUserDuplicateEmailThrowsConflict() {
-        UserCreateRequest req = new UserCreateRequest();
+        UserRequest req = new UserRequest();
         req.setUsername("bob");
         req.setEmail("bob@example.com");
         req.setPassword("pass12345");
@@ -91,7 +91,7 @@ class UserServiceTest {
 
     @Test
     void createUserDuplicateUsernameThrowsConflict() {
-        UserCreateRequest req = new UserCreateRequest();
+        UserRequest req = new UserRequest();
         req.setUsername("charlie");
         req.setEmail("charlie@example.com");
         req.setPassword("pass12345");
@@ -111,6 +111,12 @@ class UserServiceTest {
     @Test
     void updateUserSuccessUpdatesFieldsAndPasswordAndUpdatedAt() {
         UUID id = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        User actor = new User();
+        actor.setId(actorId);
+        actor.setRole(UserRole.ROLE_ADMIN);
+
         User existing = new User();
         existing.setId(id);
         existing.setUsername("old");
@@ -119,21 +125,23 @@ class UserServiceTest {
         existing.setRole(UserRole.ROLE_USER);
         existing.setCreatedAt(Instant.now().minusSeconds(3600));
 
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.of(existing));
         when(passwordEncoder.encode("newStrongPass123")).thenReturn("encodedHash");
-        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        when(userRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserCreateRequest req = new UserCreateRequest();
+        UserRequest req = new UserRequest();
         req.setUsername("newname");
         req.setEmail("new@example.com");
         req.setPassword("newStrongPass123");
 
-        var dto = userService.updateUser(id, req);
+        var dto = userService.updateUser(id, actorId, req);
 
+        verify(userRepository, times(1)).findById(actorId);
         verify(userRepository, times(1)).findById(id);
         verify(passwordEncoder, times(1)).encode("newStrongPass123");
-        verify(userRepository, times(1)).save(any(User.class));
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository, times(1)).save(captor.capture());
 
         User saved = captor.getValue();
         assertEquals("newname", saved.getUsername());
@@ -150,14 +158,23 @@ class UserServiceTest {
     @Test
     void updateUserNotFoundThrowsBadRequest() {
         UUID id = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        User actor = new User();
+        actor.setId(actorId);
+        actor.setRole(UserRole.ROLE_ADMIN);
+
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        UserCreateRequest req = new UserCreateRequest();
+        UserRequest req = new UserRequest();
         req.setUsername("x");
         req.setEmail("x@example.com");
         req.setPassword("password123");
 
-        assertThrows(BadRequestException.class, () -> userService.updateUser(id, req));
+        assertThrows(BadRequestException.class, () -> userService.updateUser(id, actorId, req));
+
+        verify(userRepository, times(1)).findById(actorId);
         verify(userRepository, times(1)).findById(id);
         verify(userRepository, never()).save(any());
     }
@@ -168,15 +185,23 @@ class UserServiceTest {
     @Test
     void deleteUserSuccessDeletesUser() {
         UUID id = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        User actor = new User();
+        actor.setId(actorId);
+        actor.setRole(UserRole.ROLE_ADMIN);
+
         User existing = new User();
         existing.setId(id);
         existing.setUsername("toDelete");
 
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.of(existing));
         doNothing().when(userRepository).delete(existing);
 
-        userService.deleteUser(id);
+        userService.deleteUser(id, actorId);
 
+        verify(userRepository, times(1)).findById(actorId);
         verify(userRepository, times(1)).findById(id);
         verify(userRepository, times(1)).delete(existing);
     }
@@ -184,9 +209,17 @@ class UserServiceTest {
     @Test
     void deleteUserNotFoundThrowsBadRequest() {
         UUID id = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        User actor = new User();
+        actor.setId(actorId);
+        actor.setRole(UserRole.ROLE_ADMIN);
+
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThrows(BadRequestException.class, () -> userService.deleteUser(id));
+        assertThrows(BadRequestException.class, () -> userService.deleteUser(id, actorId));
+        verify(userRepository, times(1)).findById(actorId);
         verify(userRepository, times(1)).findById(id);
         verify(userRepository, never()).delete(any());
     }
@@ -197,14 +230,21 @@ class UserServiceTest {
     @Test
     void promoteToManagerExistingUserPromotesToManager() {
         UUID id = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        User actor = new User();
+        actor.setId(actorId);
+        actor.setRole(UserRole.ROLE_ADMIN);
+
         User u = new User();
         u.setId(id);
         u.setRole(UserRole.ROLE_USER);
 
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.of(u));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        userService.promoteToManager(id);
+        userService.promoteToManager(id, actorId);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository, times(1)).save(captor.capture());
@@ -215,14 +255,22 @@ class UserServiceTest {
     @Test
     void promoteToManagerWhenAlreadyManagerNoSave() {
         UUID id = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        User actor = new User();
+        actor.setId(actorId);
+        actor.setRole(UserRole.ROLE_ADMIN);
+
         User u = new User();
         u.setId(id);
         u.setRole(UserRole.ROLE_MANAGER);
 
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.of(u));
 
-        userService.promoteToManager(id);
+        userService.promoteToManager(id, actorId);
 
+        verify(userRepository, times(1)).findById(actorId);
         verify(userRepository, times(1)).findById(id);
         verify(userRepository, never()).save(any());
     }
@@ -230,9 +278,17 @@ class UserServiceTest {
     @Test
     void promoteToManagerUserNotFoundThrowsBadRequest() {
         UUID id = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        User actor = new User();
+        actor.setId(actorId);
+        actor.setRole(UserRole.ROLE_ADMIN);
+
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThrows(BadRequestException.class, () -> userService.promoteToManager(id));
+        assertThrows(BadRequestException.class, () -> userService.promoteToManager(id, actorId));
+        verify(userRepository, times(1)).findById(actorId);
         verify(userRepository, times(1)).findById(id);
         verify(userRepository, never()).save(any());
     }
@@ -243,14 +299,21 @@ class UserServiceTest {
     @Test
     void demoteToUserExistingManagerDemotesToUser() {
         UUID id = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        User actor = new User();
+        actor.setId(actorId);
+        actor.setRole(UserRole.ROLE_ADMIN);
+
         User u = new User();
         u.setId(id);
         u.setRole(UserRole.ROLE_MANAGER);
 
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.of(u));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        userService.demoteToUser(id);
+        userService.demoteToUser(id, actorId);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository, times(1)).save(captor.capture());
@@ -261,14 +324,22 @@ class UserServiceTest {
     @Test
     void demoteToUserWhenAlreadyUserNoSave() {
         UUID id = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        User actor = new User();
+        actor.setId(actorId);
+        actor.setRole(UserRole.ROLE_ADMIN);
+
         User u = new User();
         u.setId(id);
         u.setRole(UserRole.ROLE_USER);
 
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.of(u));
 
-        userService.demoteToUser(id);
+        userService.demoteToUser(id, actorId);
 
+        verify(userRepository, times(1)).findById(actorId);
         verify(userRepository, times(1)).findById(id);
         verify(userRepository, never()).save(any());
     }
@@ -276,9 +347,17 @@ class UserServiceTest {
     @Test
     void demoteToUserUserNotFoundThrowsBadRequest() {
         UUID id = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        User actor = new User();
+        actor.setId(actorId);
+        actor.setRole(UserRole.ROLE_ADMIN);
+
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThrows(BadRequestException.class, () -> userService.demoteToUser(id));
+        assertThrows(BadRequestException.class, () -> userService.demoteToUser(id, actorId));
+        verify(userRepository, times(1)).findById(actorId);
         verify(userRepository, times(1)).findById(id);
         verify(userRepository, never()).save(any());
     }
