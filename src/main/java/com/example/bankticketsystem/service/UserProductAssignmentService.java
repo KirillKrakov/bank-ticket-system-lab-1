@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -40,9 +41,20 @@ public class UserProductAssignmentService {
             throw new ConflictException("Only ADMIN or PRODUCT_OWNER can assign new products!");
         }
 
+        Optional<UserProductAssignment> existingAssignment = repo.findByUserIdAndProductId(userId, productId);
         UserProductAssignment a = new UserProductAssignment();
-        a.setId(UUID.randomUUID());
-        a.setUser(u); a.setProduct(p); a.setRoleOnProduct(role); a.setAssignedAt(Instant.now());
+
+        if (existingAssignment.isPresent()) {
+            a = existingAssignment.get();
+            a.setRoleOnProduct(role);
+            a.setAssignedAt(Instant.now());
+        } else {
+            a.setId(UUID.randomUUID());
+            a.setUser(u);
+            a.setProduct(p);
+            a.setRoleOnProduct(role);
+            a.setAssignedAt(Instant.now());
+        }
         return repo.save(a);
     }
 
