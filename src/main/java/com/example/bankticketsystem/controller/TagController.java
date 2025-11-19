@@ -38,13 +38,34 @@ public class TagController {
         return ResponseEntity.ok(tags);
     }
 
+//    @GetMapping("/{name}/applications")
+//    public ResponseEntity<List<ApplicationDto>> applicationsByTag(@PathVariable String name,
+//                                                                  @RequestParam(defaultValue = "0") int page,
+//                                                                  @RequestParam(defaultValue = "20") int size,
+//                                                                  HttpServletResponse response) {
+//        var p = applicationService.listByTag(name, page, size);
+//        response.setHeader("X-Total-Count", String.valueOf(p.getTotalElements()));
+//        return ResponseEntity.ok(p.getContent());
+//    }
+
+//    @GetMapping("/{name}/applications")
+//    public ResponseEntity<TagDto> getTagWithApplications(@PathVariable String name,
+//                                                         @RequestParam(defaultValue = "0") int page,
+//                                                         @RequestParam(defaultValue = "20") int size,
+//                                                         HttpServletResponse response) {
+//
+//        TagDto tagWithApplications = tagService.getTagWithApplications(name, page, size);
+//
+//        // Получаем общее количество для заголовка (используем существующий метод)
+//        var p = applicationService.listByTag(name, page, size);
+//        response.setHeader("X-Total-Count", String.valueOf(p.getTotalElements()));
+//
+//        return ResponseEntity.ok(tagWithApplications);
+//    }
+
     @GetMapping("/{name}/applications")
-    public ResponseEntity<List<ApplicationDto>> applicationsByTag(@PathVariable String name,
-                                                                  @RequestParam(defaultValue = "0") int page,
-                                                                  @RequestParam(defaultValue = "20") int size,
-                                                                  HttpServletResponse response) {
-        var p = applicationService.listByTag(name, page, size);
-        response.setHeader("X-Total-Count", String.valueOf(p.getTotalElements()));
-        return ResponseEntity.ok(p.getContent());
+    public ResponseEntity<TagDto> getTagWithApplications(@PathVariable String name) {
+        TagDto tagWithApplications = tagService.getTagWithApplications(name);
+        return ResponseEntity.ok(tagWithApplications);
     }
 }

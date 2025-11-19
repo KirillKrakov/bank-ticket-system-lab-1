@@ -14,6 +14,7 @@ import java.util.UUID;
 //    public void setName(String name) { this.name = name; }
 //}
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.NotBlank;
 
 public class TagDto {
@@ -22,11 +23,17 @@ public class TagDto {
     @NotBlank(message = "Tag name is required")
     private String name;
 
-    // Геттеры
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private List<ApplicationDto> applications;
+
     public UUID getId() { return id; }
     public String getName() { return name; }
 
-    // Сеттер только для name (id устанавливается на стороне сервиса)
     public void setId(UUID id) { this.id = id; }
     public void setName(String name) { this.name = name; }
+    public List<ApplicationDto> getApplications() { return applications; }
+    public void setApplications(List<ApplicationDto> applications) {
+        this.applications = applications;
+    }
 }
