@@ -9,6 +9,7 @@ import com.example.bankticketsystem.model.enums.AssignmentRole;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -64,6 +65,30 @@ public class UserProductAssignmentService {
         else if (productId != null) res = repo.findByProductId(productId);
         else res = repo.findAll();
         return res.stream().map(this::toDto).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void deleteAssignments(UUID actorId, UUID userId, UUID productId) {
+        var actor = userRepo.findById(actorId)
+                .orElseThrow(() -> new BadRequestException("Actor not found: " + actorId));
+
+        if (actor.getRole() != UserRole.ROLE_ADMIN) {
+            throw new ConflictException("Only ADMIN can delete assignments!");
+        }
+
+        if (userId != null && productId != null) {
+            User u = userRepo.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+            Product p = productRepo.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
+            repo.deleteByUserIdAndProductId(userId, productId);
+        } else if (userId != null) {
+            User u = userRepo.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+            repo.deleteByUserId(userId);
+        } else if (productId != null) {
+            Product p = productRepo.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
+            repo.deleteByProductId(productId);
+        } else {
+            repo.deleteAll();
+        }
     }
 
     public AssignmentDto toDto(UserProductAssignment a) {

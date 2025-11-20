@@ -14,6 +14,8 @@ public interface UserProductAssignmentRepository extends JpaRepository<UserProdu
 
     Optional<UserProductAssignment> findByUserIdAndProductId(UUID userId, UUID productId);
     long countByUserId(UUID userId);
-    void deleteByProductId(UUID productId);
     boolean existsByUserIdAndProductIdAndRoleOnProduct(UUID actorId, UUID productId, AssignmentRole assignmentRole);
+    void deleteByUserIdAndProductId(UUID userId, UUID productId);
+    void deleteByUserId(UUID userId);
+    void deleteByProductId(UUID productId);
 }

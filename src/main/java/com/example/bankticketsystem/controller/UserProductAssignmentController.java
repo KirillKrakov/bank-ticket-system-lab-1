@@ -41,4 +41,14 @@ public class UserProductAssignmentController {
         var list = svc.list(userId, productId);
         return ResponseEntity.ok(list);
     }
+
+    @DeleteMapping
+    public ResponseEntity<Void> deleteAssignments(
+            @RequestParam UUID actorId,
+            @RequestParam(required = false) UUID userId,
+            @RequestParam(required = false) UUID productId) {
+
+        svc.deleteAssignments(actorId, userId, productId);
+        return ResponseEntity.noContent().build();
+    }
 }
