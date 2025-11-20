@@ -19,13 +19,6 @@ public class UserProductAssignmentController {
 
     public UserProductAssignmentController(UserProductAssignmentService svc){ this.svc = svc; }
 
-//    @PostMapping
-//    public ResponseEntity<AssignmentDto> assign(@Valid @RequestBody AssignmentCreateRequest req) {
-//        var a = svc.assign(req.getUserId(), req.getProductId(), req.getRole());
-//        AssignmentDto dto = svc.toDto(a);
-//        return ResponseEntity.created(URI.create("/api/v1/assignments/" + a.getId())).body(dto);
-//    }
-
     @PostMapping
     public ResponseEntity<AssignmentDto> assign(@Valid @RequestBody AssignmentCreateRequest req,
                                                 @RequestParam("actorId") UUID actorId) {

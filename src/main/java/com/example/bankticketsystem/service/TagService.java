@@ -79,7 +79,6 @@ public class TagService {
 
     private TagDto toDto(Tag t) {
         TagDto dto = new TagDto();
-        //dto.setId(t.getId());
         dto.setId(UUID.randomUUID());
         dto.setName(t.getName());
         return dto;
