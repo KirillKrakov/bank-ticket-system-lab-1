@@ -1,11 +1,13 @@
 package com.example.bankticketsystem.service;
 
-import com.example.bankticketsystem.dto.request.UserRequest;
+import com.example.bankticketsystem.dto.UserDto;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.exception.ConflictException;
+import com.example.bankticketsystem.exception.NotFoundException;
 import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.UserRepository;
+import org.aspectj.weaver.ast.Not;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
@@ -39,7 +41,7 @@ class UserServiceTest {
     // -----------------------
     @Test
     void createUserSuccessCreatesUser() {
-        UserRequest req = new UserRequest();
+        UserDto req = new UserDto();
         req.setUsername("alice");
         req.setEmail("alice@example.com");
         req.setPassword("StrongPass123");
@@ -72,7 +74,7 @@ class UserServiceTest {
 
     @Test
     void createUserDuplicateEmailThrowsConflict() {
-        UserRequest req = new UserRequest();
+        UserDto req = new UserDto();
         req.setUsername("bob");
         req.setEmail("bob@example.com");
         req.setPassword("pass12345");
@@ -91,7 +93,7 @@ class UserServiceTest {
 
     @Test
     void createUserDuplicateUsernameThrowsConflict() {
-        UserRequest req = new UserRequest();
+        UserDto req = new UserDto();
         req.setUsername("charlie");
         req.setEmail("charlie@example.com");
         req.setPassword("pass12345");
@@ -130,7 +132,7 @@ class UserServiceTest {
         when(passwordEncoder.encode("newStrongPass123")).thenReturn("encodedHash");
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserRequest req = new UserRequest();
+        UserDto req = new UserDto();
         req.setUsername("newname");
         req.setEmail("new@example.com");
         req.setPassword("newStrongPass123");
@@ -167,12 +169,12 @@ class UserServiceTest {
         when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        UserRequest req = new UserRequest();
+        UserDto req = new UserDto();
         req.setUsername("x");
         req.setEmail("x@example.com");
         req.setPassword("password123");
 
-        assertThrows(BadRequestException.class, () -> userService.updateUser(id, actorId, req));
+        assertThrows(NotFoundException.class, () -> userService.updateUser(id, actorId, req));
 
         verify(userRepository, times(1)).findById(actorId);
         verify(userRepository, times(1)).findById(id);
@@ -218,7 +220,7 @@ class UserServiceTest {
         when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThrows(BadRequestException.class, () -> userService.deleteUser(id, actorId));
+        assertThrows(NotFoundException.class, () -> userService.deleteUser(id, actorId));
         verify(userRepository, times(1)).findById(actorId);
         verify(userRepository, times(1)).findById(id);
         verify(userRepository, never()).delete(any());
@@ -287,7 +289,7 @@ class UserServiceTest {
         when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThrows(BadRequestException.class, () -> userService.promoteToManager(id, actorId));
+        assertThrows(NotFoundException.class, () -> userService.promoteToManager(id, actorId));
         verify(userRepository, times(1)).findById(actorId);
         verify(userRepository, times(1)).findById(id);
         verify(userRepository, never()).save(any());
@@ -356,7 +358,7 @@ class UserServiceTest {
         when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThrows(BadRequestException.class, () -> userService.demoteToUser(id, actorId));
+        assertThrows(NotFoundException.class, () -> userService.demoteToUser(id, actorId));
         verify(userRepository, times(1)).findById(actorId);
         verify(userRepository, times(1)).findById(id);
         verify(userRepository, never()).save(any());

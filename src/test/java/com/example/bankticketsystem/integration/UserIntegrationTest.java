@@ -1,7 +1,6 @@
 package com.example.bankticketsystem.integration;
 
-import com.example.bankticketsystem.dto.request.UserRequest;
-import com.example.bankticketsystem.dto.response.UserResponse;
+import com.example.bankticketsystem.dto.UserDto;
 import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.UserRepository;
@@ -57,27 +56,27 @@ public class UserIntegrationTest {
     @Test
     public void fullLifecycle_withAdminActor() {
         // 1) create a normal user via POST
-        UserRequest createReq = new UserRequest();
+        UserDto createReq = new UserDto();
         createReq.setUsername("targetUser");
         createReq.setEmail("target@example.com");
         createReq.setPassword("targetPass123");
 
-        ResponseEntity<UserResponse> createResp = rest.postForEntity("/api/v1/users", createReq, UserResponse.class);
+        ResponseEntity<UserDto> createResp = rest.postForEntity("/api/v1/users", createReq, UserDto.class);
         assertEquals(HttpStatus.CREATED, createResp.getStatusCode());
         assertNotNull(createResp.getBody());
         UUID targetId = createResp.getBody().getId();
 
         // verify GET /{id}
-        ResponseEntity<UserResponse> getResp = rest.getForEntity("/api/v1/users/" + targetId, UserResponse.class);
+        ResponseEntity<UserDto> getResp = rest.getForEntity("/api/v1/users/" + targetId, UserDto.class);
         assertEquals(HttpStatus.OK, getResp.getStatusCode());
         assertNotNull(getResp.getBody());
         assertEquals("targetUser", getResp.getBody().getUsername());
 
         // verify list contains the created user
-        ResponseEntity<UserResponse[]> listResp = rest.getForEntity("/api/v1/users", UserResponse[].class);
+        ResponseEntity<UserDto[]> listResp = rest.getForEntity("/api/v1/users", UserDto[].class);
         assertEquals(HttpStatus.OK, listResp.getStatusCode());
         assertNotNull(listResp.getBody());
-        List<UserResponse> users = Arrays.asList(listResp.getBody());
+        List<UserDto> users = Arrays.asList(listResp.getBody());
         assertTrue(users.stream().anyMatch(u -> targetId.equals(u.getId())));
 
         // 2) create an admin actor directly in DB (assign id and required fields)
@@ -93,20 +92,20 @@ public class UserIntegrationTest {
         assertNotNull(adminId);
 
         // 3) update the target user using admin actor (PUT /api/v1/users/{id}?actorId=...)
-        UserRequest updateReq = new UserRequest();
+        UserDto updateReq = new UserDto();
         updateReq.setUsername("updatedUser");
         updateReq.setEmail("updated@example.com");
         updateReq.setPassword("newpass123");
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<UserRequest> updateEntity = new HttpEntity<>(updateReq, headers);
+        HttpEntity<UserDto> updateEntity = new HttpEntity<>(updateReq, headers);
 
-        ResponseEntity<UserResponse> updateResp = rest.exchange(
+        ResponseEntity<UserDto> updateResp = rest.exchange(
                 "/api/v1/users/" + targetId + "?actorId=" + adminId,
                 HttpMethod.PUT,
                 updateEntity,
-                UserResponse.class
+                UserDto.class
         );
 
         assertEquals(HttpStatus.OK, updateResp.getStatusCode());
@@ -126,7 +125,7 @@ public class UserIntegrationTest {
         assertEquals(HttpStatus.NO_CONTENT, promoteResp.getStatusCode());
 
         // verify role is MANAGER via GET
-        ResponseEntity<UserResponse> afterPromoteGet = rest.getForEntity("/api/v1/users/" + targetId, UserResponse.class);
+        ResponseEntity<UserDto> afterPromoteGet = rest.getForEntity("/api/v1/users/" + targetId, UserDto.class);
         assertEquals(HttpStatus.OK, afterPromoteGet.getStatusCode());
         assertEquals(UserRole.ROLE_MANAGER, Objects.requireNonNull(afterPromoteGet.getBody()).getRole());
 
@@ -139,7 +138,7 @@ public class UserIntegrationTest {
         );
         assertEquals(HttpStatus.NO_CONTENT, demoteResp.getStatusCode());
 
-        ResponseEntity<UserResponse> afterDemoteGet = rest.getForEntity("/api/v1/users/" + targetId, UserResponse.class);
+        ResponseEntity<UserDto> afterDemoteGet = rest.getForEntity("/api/v1/users/" + targetId, UserDto.class);
         assertEquals(HttpStatus.OK, afterDemoteGet.getStatusCode());
         assertEquals(UserRole.ROLE_USER, Objects.requireNonNull(afterDemoteGet.getBody()).getRole());
 
@@ -153,13 +152,13 @@ public class UserIntegrationTest {
         assertEquals(HttpStatus.NO_CONTENT, deleteResp.getStatusCode());
 
         // GET now should return 404
-        ResponseEntity<UserResponse> afterDeleteGet = rest.getForEntity("/api/v1/users/" + targetId, UserResponse.class);
+        ResponseEntity<UserDto> afterDeleteGet = rest.getForEntity("/api/v1/users/" + targetId, UserDto.class);
         assertEquals(HttpStatus.NOT_FOUND, afterDeleteGet.getStatusCode());
 
         // list should no longer contain the deleted user
-        ResponseEntity<UserResponse[]> finalListResp = rest.getForEntity("/api/v1/users", UserResponse[].class);
+        ResponseEntity<UserDto[]> finalListResp = rest.getForEntity("/api/v1/users", UserDto[].class);
         assertEquals(HttpStatus.OK, finalListResp.getStatusCode());
-        List<UserResponse> finalUsers = Arrays.asList(Objects.requireNonNull(finalListResp.getBody()));
+        List<UserDto> finalUsers = Arrays.asList(Objects.requireNonNull(finalListResp.getBody()));
         assertFalse(finalUsers.stream().anyMatch(u -> targetId.equals(u.getId())));
     }
 }

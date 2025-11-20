@@ -1,7 +1,6 @@
 package com.example.bankticketsystem.controller;
 
-import com.example.bankticketsystem.dto.request.UserRequest;
-import com.example.bankticketsystem.dto.response.UserResponse;
+import com.example.bankticketsystem.dto.UserDto;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.repository.UserRepository;
 import com.example.bankticketsystem.service.UserService;
@@ -28,39 +27,39 @@ public class UserController {
         this.userRepository = userRepository;
     }
 
-    // Create: POST “/api/v1/users” + UserCreateRequest (Body)
+    // Create: POST “/api/v1/users” + UserDto(username,email,password) (Body)
     @PostMapping
-    public ResponseEntity<UserResponse> register(@Valid @RequestBody UserRequest req) {
-        UserResponse dto = userService.create(req);
+    public ResponseEntity<UserDto> register(@Valid @RequestBody UserDto req) {
+        UserDto dto = userService.create(req);
         return ResponseEntity.status(201).body(dto);
     }
 
     // ReadAll: GET “api/v1/users?page=0&size=20”
     @GetMapping
-    public ResponseEntity<List<UserResponse>> list(@RequestParam(defaultValue = "0") int page,
-                                                   @RequestParam(defaultValue = "20") int size,
-                                                   HttpServletResponse response) {
+    public ResponseEntity<List<UserDto>> list(@RequestParam(defaultValue = "0") int page,
+                                              @RequestParam(defaultValue = "20") int size,
+                                              HttpServletResponse response) {
         if (size > MAX_PAGE_SIZE) {
             throw new BadRequestException("size cannot be greater than " + MAX_PAGE_SIZE);
         }
-        Page<UserResponse> u = userService.list(page, size);
+        Page<UserDto> u = userService.list(page, size);
         response.setHeader("X-Total-Count", String.valueOf(u.getTotalElements()));
         return ResponseEntity.ok(u.getContent());
     }
 
     // Read: GET “/api/v1/users/{id}”
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponse> showUser(@PathVariable("id") UUID id) {
-        UserResponse userResponse = userService.get(id);
-        return userResponse == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(userResponse);
+    public ResponseEntity<UserDto> showUser(@PathVariable("id") UUID id) {
+        UserDto userDto = userService.get(id);
+        return userDto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(userDto);
     }
 
-    // Update: PUT “/api/v1/users/{id}?actorId={adminId}” + UserCreateRequest (Body)
+    // Update: PUT “/api/v1/users/{id}?actorId={adminId}” + UserDto(username,email,password) (Body)
     @PutMapping("/{id}")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable("id") UUID id,
-                                                   @RequestParam("actorId") UUID actorId,
-                                                   @Valid @RequestBody UserRequest req) {
-        UserResponse updated = userService.updateUser(id, actorId, req);
+    public ResponseEntity<UserDto> updateUser(@PathVariable("id") UUID id,
+                                              @RequestParam("actorId") UUID actorId,
+                                              @Valid @RequestBody UserDto req) {
+        UserDto updated = userService.updateUser(id, actorId, req);
         return ResponseEntity.ok(updated);
     }
 

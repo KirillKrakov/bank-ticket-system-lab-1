@@ -1,7 +1,6 @@
 package com.example.bankticketsystem.integration;
 
-import com.example.bankticketsystem.dto.AssignmentCreateRequest;
-import com.example.bankticketsystem.dto.AssignmentDto;
+import com.example.bankticketsystem.dto.UserProductAssignmentDto;
 import com.example.bankticketsystem.model.entity.Product;
 import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.AssignmentRole;
@@ -49,20 +48,20 @@ public class AssignmentIntegrationTest {
         User u = new User(); u.setId(UUID.randomUUID()); u.setUsername("assuser"); u.setEmail("ass@example.com"); u.setPasswordHash("noop"); u.setCreatedAt(java.time.Instant.now()); userRepository.save(u);
         Product p = new Product(); p.setId(UUID.randomUUID()); p.setName("assprod"); productRepository.save(p);
 
-        AssignmentCreateRequest req = new AssignmentCreateRequest();
+        UserProductAssignmentDto req = new UserProductAssignmentDto();
         req.setUserId(u.getId());
         req.setProductId(p.getId());
         req.setRole(AssignmentRole.RESELLER);
 
-        ResponseEntity<AssignmentDto> create = rest.postForEntity("/api/v1/assignments", req, AssignmentDto.class);
+        ResponseEntity<UserProductAssignmentDto> create = rest.postForEntity("/api/v1/assignments", req, UserProductAssignmentDto.class);
         assertEquals(HttpStatus.CREATED, create.getStatusCode());
-        AssignmentDto dto = create.getBody();
+        UserProductAssignmentDto dto = create.getBody();
         assertNotNull(dto);
         assertEquals(AssignmentRole.RESELLER, dto.getRole());
 
-        ResponseEntity<AssignmentDto[]> list = rest.getForEntity("/api/v1/assignments?userId=" + u.getId(), AssignmentDto[].class);
+        ResponseEntity<UserProductAssignmentDto[]> list = rest.getForEntity("/api/v1/assignments?userId=" + u.getId(), UserProductAssignmentDto[].class);
         assertEquals(HttpStatus.OK, list.getStatusCode());
-        AssignmentDto[] arr = list.getBody();
+        UserProductAssignmentDto[] arr = list.getBody();
         assertTrue(arr != null && arr.length >= 1);
     }
 }

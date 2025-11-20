@@ -1,9 +1,12 @@
 package com.example.bankticketsystem.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 import java.util.UUID;
 
 public class DocumentDto {
     private UUID id;
+    @NotBlank
     private String fileName;
     private String contentType;
     private String storagePath;

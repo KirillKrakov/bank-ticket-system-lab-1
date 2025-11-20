@@ -46,7 +46,6 @@ public class TagService {
 
         TagDto dto = toDto(tag);
 
-        // Преобразуем applications в ApplicationDto
         List<ApplicationDto> applicationDtos = tag.getApplications().stream()
                 .map(this::toApplicationDto)
                 .collect(Collectors.toList());

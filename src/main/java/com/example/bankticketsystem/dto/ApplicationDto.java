@@ -1,6 +1,8 @@
 package com.example.bankticketsystem.dto;
 
 import com.example.bankticketsystem.model.enums.ApplicationStatus;
+import jakarta.validation.constraints.Size;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -14,7 +16,6 @@ public class ApplicationDto {
     private List<DocumentDto> documents;
     private List<String> tags;
 
-    // getters/setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 

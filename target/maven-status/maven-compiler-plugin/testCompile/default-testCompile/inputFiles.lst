@@ -1,15 +1,9 @@
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\integration\ApplicationHistoryIntegrationTest.java
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\integration\ApplicationIntegrationTest.java
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\integration\ApplicationKeysetIntegrationTest.java
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\integration\ApplicationNegativeIntegrationTest.java
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\integration\ApplicationPaginationIntegrationTest.java
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\integration\AssignmentIntegrationTest.java
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\integration\TagIntegrationTest.java
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\integration\UserIntegrationTest.java
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\service\ApplicationServiceDeleteTest.java
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\service\ApplicationServiceHistoryTest.java
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\service\ApplicationServiceUnitTest.java
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\service\ProductServiceTest.java
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\service\ProductServiceUpdateDeleteTest.java
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\service\TagServiceTest.java
-C:\Users\danie\OneDrive\Рабочий стол\Python\Высокопроизводительные системы\bank-ticket-system-lr-1\src\test\java\com\example\bankticketsystem\service\UserServiceTest.java
+C:\Users\Krako\HighloadSystems\bank-ticket-system-lab-1\src\test\java\com\example\bankticketsystem\integration\ApplicationIntegrationTest.java
+C:\Users\Krako\HighloadSystems\bank-ticket-system-lab-1\src\test\java\com\example\bankticketsystem\integration\AssignmentIntegrationTest.java
+C:\Users\Krako\HighloadSystems\bank-ticket-system-lab-1\src\test\java\com\example\bankticketsystem\integration\ProductIntegrationTest.java
+C:\Users\Krako\HighloadSystems\bank-ticket-system-lab-1\src\test\java\com\example\bankticketsystem\integration\TagIntegrationTest.java
+C:\Users\Krako\HighloadSystems\bank-ticket-system-lab-1\src\test\java\com\example\bankticketsystem\integration\UserIntegrationTest.java
+C:\Users\Krako\HighloadSystems\bank-ticket-system-lab-1\src\test\java\com\example\bankticketsystem\service\ApplicationServiceTest.java
+C:\Users\Krako\HighloadSystems\bank-ticket-system-lab-1\src\test\java\com\example\bankticketsystem\service\ProductServiceTest.java
+C:\Users\Krako\HighloadSystems\bank-ticket-system-lab-1\src\test\java\com\example\bankticketsystem\service\TagServiceTest.java
+C:\Users\Krako\HighloadSystems\bank-ticket-system-lab-1\src\test\java\com\example\bankticketsystem\service\UserServiceTest.java

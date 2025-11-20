@@ -1,15 +1,15 @@
 package com.example.bankticketsystem.service;
 
-import com.example.bankticketsystem.dto.*;
-import com.example.bankticketsystem.exception.ConflictException;
+import com.example.bankticketsystem.dto.ApplicationHistoryDto;
+import com.example.bankticketsystem.dto.ApplicationDto;
+import com.example.bankticketsystem.dto.DocumentDto;
+import com.example.bankticketsystem.exception.*;
 import com.example.bankticketsystem.model.entity.*;
 import com.example.bankticketsystem.model.enums.ApplicationStatus;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.*;
-import com.example.bankticketsystem.service.TagService;
 import com.example.bankticketsystem.util.CursorUtil;
-import com.example.bankticketsystem.exception.BadRequestException;
-import com.example.bankticketsystem.exception.NotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.*;
@@ -46,7 +46,18 @@ public class ApplicationService {
     }
 
     @Transactional
-    public ApplicationDto createApplication(ApplicationCreateRequest req) {
+    public ApplicationDto createApplication(ApplicationDto req) {
+        if (req == null) throw new BadRequestException("Request is required");
+        if (req.getId() != null || req.getCreatedAt() != null) {
+            throw new ForbiddenException("Application ID and time of application creation sets automatically");
+        }
+        if ((req.getApplicantId() == null) || (req.getProductId() == null)) {
+            throw new BadRequestException("Applicant ID and Product ID must be in request body");
+        }
+        if (req.getStatus() != null) {
+            throw new ForbiddenException("You can't change the status of an application from SUBMITTED at the time of its creation");
+        }
+
         User applicant = userRepository.findById(req.getApplicantId())
                 .orElseThrow(() -> new NotFoundException("Applicant not found"));
 
@@ -54,15 +65,16 @@ public class ApplicationService {
                 .orElseThrow(() -> new NotFoundException("Product not found"));
 
         Application app = new Application();
-        app.setId(UUID.randomUUID());
+        UUID applicationId = UUID.randomUUID();
+        app.setId(applicationId);
         app.setApplicant(applicant);
         app.setProduct(product);
         app.setStatus(ApplicationStatus.SUBMITTED);
         app.setCreatedAt(Instant.now());
 
-        List<DocumentCreateRequest> docsReq = req.getDocuments() == null ? List.of() : req.getDocuments();
+        List<DocumentDto> docsReq = req.getDocuments() == null ? List.of() : req.getDocuments();
         List<Document> docs = new ArrayList<>();
-        for (DocumentCreateRequest dreq : docsReq) {
+        for (DocumentDto dreq : docsReq) {
             Document d = new Document();
             d.setId(UUID.randomUUID());
             d.setFileName(dreq.getFileName());
@@ -73,7 +85,7 @@ public class ApplicationService {
         }
         app.setDocuments(docs);
 
-        applicationRepository.save(app); // cascades documents due to cascade ALL
+        applicationRepository.save(app);
 
         ApplicationHistory hist = new ApplicationHistory();
         hist.setId(UUID.randomUUID());
@@ -84,21 +96,20 @@ public class ApplicationService {
         hist.setChangedAt(Instant.now());
         historyRepository.save(hist);
 
+        List<String> tagsReq = req.getTags() == null ? List.of() : req.getTags();
+        attachTags(applicationId, tagsReq, req.getApplicantId());
+
         return toDto(app);
     }
 
     public Page<ApplicationDto> list(int page, int size) {
         Pageable p = PageRequest.of(page, size);
-        return applicationRepository.findAll(p).map(this::toDto);
+        Page<Application> applications = applicationRepository.findAll(p);
+        return applications.map(this::toDto);
     }
 
     public ApplicationDto get(UUID id) {
         return applicationRepository.findById(id).map(this::toDto).orElse(null);
-    }
-
-    public Application getEntity(UUID id) {
-        return applicationRepository.findById(id)
-                .orElseThrow(() -> new BadRequestException("Application not found: " + id));
     }
 
     private ApplicationDto toDto(Application app) {
@@ -108,8 +119,8 @@ public class ApplicationService {
         dto.setProductId(app.getProduct() != null ? app.getProduct().getId() : null);
         dto.setStatus(app.getStatus());
         dto.setCreatedAt(app.getCreatedAt());
-        List<DocumentDto> docs = app.getDocuments().stream().map(d -> {
-            DocumentDto dd = new DocumentDto();
+        List<com.example.bankticketsystem.dto.DocumentDto> docs = app.getDocuments().stream().map(d -> {
+            com.example.bankticketsystem.dto.DocumentDto dd = new com.example.bankticketsystem.dto.DocumentDto();
             dd.setId(d.getId());
             dd.setFileName(d.getFileName());
             dd.setContentType(d.getContentType());
@@ -133,8 +144,19 @@ public class ApplicationService {
     }
 
     @Transactional
-    public void attachTags(UUID applicationId, List<String> tagNames) {
+    public void attachTags(UUID applicationId, List<String> tagNames, UUID actorId) {
+        if (actorId == null) {
+            throw new UnauthorizedException("You must specify the actorId to authorize in this request");
+        }
+        User current = userRepository.findById(actorId)
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
+
         Application app = applicationRepository.findById(applicationId).orElseThrow(() -> new NotFoundException("Application not found"));
+        if (!(app.getApplicant().getId().equals(current.getId()) || current.getRole() == UserRole.ROLE_ADMIN
+                || current.getRole() == UserRole.ROLE_MANAGER)) {
+            throw new ForbiddenException("You must have the rights of an applicant, manager, or administrator for this request");
+        }
+
         for (String name : tagNames) {
             Tag t = tagService.createIfNotExists(name);
             app.getTags().add(t);
@@ -143,12 +165,20 @@ public class ApplicationService {
     }
 
     @Transactional
-    public void removeTags(UUID applicationId, List<String> tagNames) {
-        Application app = applicationRepository.findById(applicationId)
-                .orElseThrow(() -> new NotFoundException("Application not found"));
+    public void removeTags(UUID applicationId, List<String> tagNames, UUID actorId) {
+        if (actorId == null) {
+            throw new UnauthorizedException("You must specify the actorId to authorize in this request");
+        }
+        User current = userRepository.findById(actorId)
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
+
+        Application app = applicationRepository.findById(applicationId).orElseThrow(() -> new NotFoundException("Application not found"));
+        if (!(app.getApplicant().getId().equals(current.getId()) || current.getRole() == UserRole.ROLE_ADMIN
+                || current.getRole() == UserRole.ROLE_MANAGER)) {
+            throw new ForbiddenException("You must have the rights of an applicant, manager, or administrator for this request");
+        }
 
         app.getTags().removeIf(tag -> tagNames.contains(tag.getName()));
-
         applicationRepository.save(app);
     }
 
@@ -159,78 +189,94 @@ public class ApplicationService {
     }
 
     @Transactional
-    public ApplicationDto changeStatus(UUID id, ApplicationStatus newStatus, UUID performedById) {
-        if (newStatus == null) throw new BadRequestException("Status must be provided");
+    public ApplicationDto changeStatus(UUID applicationId, String status, UUID actorId) {
+        if (status == null) throw new BadRequestException("Status must be not empty");
 
-        Application app = getEntity(id);
+        if (actorId == null) {
+            throw new UnauthorizedException("You must specify the actorId to authorize in this request");
+        }
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
-        User performer = userRepository.findById(performedById)
-                .orElseThrow(() -> new BadRequestException("Performer not found: " + performedById));
+        Application app = applicationRepository.findById(applicationId).
+                orElseThrow(() -> new NotFoundException("Application not found: " + applicationId));
 
-        if (performer.getRole() == UserRole.ROLE_MANAGER) {
-            if (app.getApplicant() != null && app.getApplicant().getId().equals(performer.getId())) {
-                throw new BadRequestException("Managers cannot change status of their own applications");
+        if (actor.getRole() != UserRole.ROLE_MANAGER && actor.getRole() != UserRole.ROLE_ADMIN) {
+            throw new ForbiddenException("Only admin or manager can change application status");
+        }
+        if (actor.getRole() == UserRole.ROLE_MANAGER) {
+            if (app.getApplicant() != null && app.getApplicant().getId().equals(actor.getId())) {
+                throw new ConflictException("Managers cannot change status of their own applications");
             }
         }
 
-        ApplicationStatus oldStatus = app.getStatus();
-        if (oldStatus == newStatus) {
-            return toDto(app);
-        }
-
         try {
-            app.setStatus(newStatus);
-            app.setUpdatedAt(Instant.now());
-            applicationRepository.save(app);
+            ApplicationStatus newStatus = ApplicationStatus.valueOf(status.trim().toUpperCase());
+            ApplicationStatus oldStatus = app.getStatus();
+            if (oldStatus == newStatus) {
+                return toDto(app);
+            }
+            try {
+                app.setStatus(newStatus);
+                app.setUpdatedAt(Instant.now());
+                applicationRepository.save(app);
 
-            ApplicationHistory hist = new ApplicationHistory();
-            hist.setId(UUID.randomUUID());
-            hist.setApplication(app);
-            hist.setOldStatus(oldStatus);
-            hist.setNewStatus(newStatus);
-            hist.setChangedBy(performer.getRole());
-            hist.setChangedAt(Instant.now());
+                ApplicationHistory hist = new ApplicationHistory();
+                hist.setId(UUID.randomUUID());
+                hist.setApplication(app);
+                hist.setOldStatus(oldStatus);
+                hist.setNewStatus(newStatus);
+                hist.setChangedBy(actor.getRole());
+                hist.setChangedAt(Instant.now());
 
-            applicationHistoryRepository.save(hist);
-        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
-            Throwable root = ex.getRootCause() != null ? ex.getRootCause() : ex;
-            root.printStackTrace();
-            throw new com.example.bankticketsystem.exception.ConflictException("DB constraint violated: " + root.toString());
+                applicationHistoryRepository.save(hist);
+            } catch (DataIntegrityViolationException ex) {
+                Throwable root = ex.getRootCause() != null ? ex.getRootCause() : ex;
+                throw new ConflictException("DB constraint violated: " + root.getMessage());
+            }
+
+            return toDto(app);
+        } catch (IllegalArgumentException e) {
+            throw new ConflictException("This status is incorrect. List of statuses: " +
+                    "DRAFT, SUBMITTED, IN_REVIEW, APPROVED, REJECTED");
         }
-
-        return toDto(app);
     }
 
     @Transactional
     public void deleteApplication(UUID applicationId, UUID actorId) {
+        if (actorId == null) {
+            throw new UnauthorizedException("You must specify the actorId to authorize in this request");
+        }
         User actor = userRepository.findById(actorId)
-                .orElseThrow(() -> new BadRequestException("Actor not found: " + actorId));
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
         if (actor.getRole() != UserRole.ROLE_ADMIN) {
-            throw new ConflictException("Only ADMIN can delete applications");
+            throw new ForbiddenException("Only admin can delete applications");
         }
 
         Application app = applicationRepository.findById(applicationId)
-                .orElseThrow(() -> new BadRequestException("Application not found: " + applicationId));
+                .orElseThrow(() -> new NotFoundException("Application not found: " + applicationId));
 
         try {
             applicationRepository.delete(app);
-
         } catch (Exception ex) {
             throw new ConflictException("Failed to delete application (DB constraint): " + ex.getMessage());
         }
     }
 
     public List<ApplicationHistoryDto> listHistory(UUID applicationId, UUID actorId) {
+        if (actorId == null) {
+            throw new UnauthorizedException("You must specify the actorId to authorize in this request");
+        }
         User actor = userRepository.findById(actorId)
-                .orElseThrow(() -> new BadRequestException("Actor not found: " + actorId));
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
         Application app = applicationRepository.findById(applicationId)
-                .orElseThrow(() -> new BadRequestException("Application not found: " + applicationId));
+                .orElseThrow(() -> new NotFoundException("Application not found: " + applicationId));
 
-        boolean isOwner = app.getApplicant() != null && app.getApplicant().getId().equals(actor.getId());
-        if (!(isOwner || actor.getRole() == UserRole.ROLE_ADMIN || actor.getRole() == UserRole.ROLE_MANAGER)) {
-            throw new ConflictException("Not allowed to view history");
+        boolean isApplicant = app.getApplicant() != null && app.getApplicant().getId().equals(actor.getId());
+        if (!(isApplicant || actor.getRole() == UserRole.ROLE_ADMIN || actor.getRole() == UserRole.ROLE_MANAGER)) {
+            throw new ForbiddenException("Only applicant, manager or admin can see the history of application changes");
         }
 
         List<ApplicationHistory> history = applicationHistoryRepository.findByApplicationIdOrderByChangedAtDesc(applicationId);

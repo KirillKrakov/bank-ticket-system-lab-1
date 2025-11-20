@@ -1,20 +1,13 @@
 package com.example.bankticketsystem.controller;
 
-import com.example.bankticketsystem.dto.ApplicationCreateRequest;
 import com.example.bankticketsystem.dto.ApplicationDto;
 import com.example.bankticketsystem.dto.ApplicationHistoryDto;
-import com.example.bankticketsystem.dto.StatusChangeRequest;
 import com.example.bankticketsystem.exception.BadRequestException;
-import com.example.bankticketsystem.model.entity.Application;
-import com.example.bankticketsystem.model.entity.User;
-import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.UserRepository;
 import com.example.bankticketsystem.service.ApplicationService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -36,13 +29,15 @@ public class ApplicationController {
         this.userRepository = userRepository;
     }
 
+    // Create: POST "/api/v1/applications" + ApplicationDto(applicantId,productId,documents(fileName,contentType,storagePath)) (Body)
     @PostMapping
-    public ResponseEntity<ApplicationDto> create(@Valid @RequestBody ApplicationCreateRequest req, UriComponentsBuilder uriBuilder) {
+    public ResponseEntity<ApplicationDto> create(@Valid @RequestBody ApplicationDto req, UriComponentsBuilder uriBuilder) {
         ApplicationDto dto = applicationService.createApplication(req);
         URI location = uriBuilder.path("/api/v1/applications/{id}").buildAndExpand(dto.getId()).toUri();
         return ResponseEntity.created(location).body(dto);
     }
 
+    // ReadAll: GET "/api/v1/applications?page=0&size=20"
     @GetMapping
     public ResponseEntity<List<ApplicationDto>> list(@RequestParam(defaultValue = "0") int page,
                                                      @RequestParam(defaultValue = "20") int size,
@@ -55,88 +50,58 @@ public class ApplicationController {
         return ResponseEntity.ok(p.getContent());
     }
 
+    // Read: GET “/api/v1/applications/{id}”
     @GetMapping("/{id}")
     public ResponseEntity<ApplicationDto> get(@PathVariable UUID id) {
         ApplicationDto dto = applicationService.get(id);
         return dto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dto);
     }
 
+    // ReadAllByStream: GET “/api/v1/applications/stream?cursor=<base64>&limit=20
     @GetMapping("/stream")
     public ResponseEntity<List<ApplicationDto>> stream(@RequestParam(required = false) String cursor,
                                                        @RequestParam(required = false, defaultValue = "20") int limit) {
-        if (limit > 50) throw new BadRequestException("limit cannot be greater than 50");
+        if (limit > 50) {
+            throw new BadRequestException("limit cannot be greater than 50");
+        }
         var list = applicationService.stream(cursor, limit);
         return ResponseEntity.ok(list);
     }
 
-    @PostMapping("/{id}/tags")
-    public ResponseEntity<Void> addTags(@PathVariable UUID id, @RequestBody List<String> tags) {
-        applicationService.attachTags(id, tags);
+    // Update(addTags): PUT “/api/v1/applications/{id}/tags?actorId={applicantOrManagerId}” + List<String> tags (Body)
+    @PutMapping("/{id}/tags")
+    public ResponseEntity<Void> addTags(@PathVariable UUID id, @RequestBody List<String> tags, @RequestParam("actorId") UUID actorId) {
+        applicationService.attachTags(id, tags, actorId);
         return ResponseEntity.noContent().build();
     }
 
+    // Delete(deleteTags): DELETE “/api/v1/applications/{id}/tags?actorId={applicantOrManagerId}” + List<String> tags (Body)
     @DeleteMapping("/{id}/tags")
-    public ResponseEntity<Void> removeTags(@PathVariable UUID id, @RequestBody List<String> tags) {
-        applicationService.removeTags(id, tags);
+    public ResponseEntity<Void> removeTags(@PathVariable UUID id, @RequestBody List<String> tags, @RequestParam("actorId") UUID actorId) {
+        applicationService.removeTags(id, tags, actorId);
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * PUT /api/v1/applications/{id}/status?actorId={actorId}
-     */
+    // Update(changeStatus): PUT “/api/v1/applications/{id}/status?actorId={actorId}” + ApplicationStatus
     @PutMapping("/{id}/status")
-    @Transactional
     public ResponseEntity<ApplicationDto> changeStatus(
-            @PathVariable("id") UUID id,
-            @RequestBody StatusChangeRequest req,
-            @RequestParam("actorId") UUID actorId) {
-
-        if (req == null || req.getStatus() == null) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        User current = userRepository.findById(actorId).orElse(null);
-        if (current == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        if (current.getRole() != UserRole.ROLE_ADMIN && current.getRole() != UserRole.ROLE_MANAGER) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-
-        Application app = applicationService.getEntity(id);
-        if (app == null) return ResponseEntity.notFound().build();
-
-        if (current.getRole() == UserRole.ROLE_MANAGER) {
-            if (app.getApplicant() != null && app.getApplicant().getId().equals(current.getId())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            }
-        }
-
-        ApplicationDto updated = applicationService.changeStatus(id, req.getStatus(), current.getId());
+            @PathVariable("id") UUID id, @RequestBody String status, @RequestParam("actorId") UUID actorId) {
+        ApplicationDto updated = applicationService.changeStatus(id, status, actorId);
         return ResponseEntity.ok(updated);
     }
 
-    /**
-     * DELETE /api/v1/applications/{id}?actorId={actorId}
-     */
+    // Delete: DELETE “/api/v1/applications/{id}?actorId={actorId}”
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteApplication(@PathVariable("id") UUID id,
                                                   @RequestParam("actorId") UUID actorId) {
-        if (actorId == null) throw new BadRequestException("actorId is required");
-
         applicationService.deleteApplication(id, actorId);
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * GET /api/v1/applications/{id}/history?actorId={actorId}
-     */
+    // ReadHistory: GET “/api/v1/applications/{id}/history?actorId={actorId}”
     @GetMapping("/{id}/history")
     public ResponseEntity<List<ApplicationHistoryDto>> getHistory(@PathVariable("id") UUID id,
                                                                   @RequestParam("actorId") UUID actorId) {
-        if (actorId == null) throw new BadRequestException("actorId is required");
-
         List<ApplicationHistoryDto> list = applicationService.listHistory(id, actorId);
         return ResponseEntity.ok(list);
     }
