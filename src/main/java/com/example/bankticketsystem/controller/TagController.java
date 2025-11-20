@@ -21,6 +21,7 @@ public class TagController {
         this.applicationService = applicationService;
     }
 
+    // Create: POST "/api/v1/tags" + TagDto(name) (Body)
     @PostMapping
     public ResponseEntity<TagDto> create(@Valid @RequestBody TagDto dto) {
         var created = tagService.createIfNotExists(dto.getName());
@@ -30,12 +31,14 @@ public class TagController {
         return ResponseEntity.status(201).body(out);
     }
 
+    // ReadAll: GET "/api/v1/tags"
     @GetMapping
     public ResponseEntity<List<TagDto>> list() {
         List<TagDto> tags = tagService.listAll();
         return ResponseEntity.ok(tags);
     }
 
+    // Read: GET "/api/v1/tags/{name}/applications"
     @GetMapping("/{name}/applications")
     public ResponseEntity<TagDto> getTagWithApplications(@PathVariable String name) {
         TagDto tagWithApplications = tagService.getTagWithApplications(name);

@@ -18,6 +18,7 @@ public class UserProductAssignmentController {
 
     public UserProductAssignmentController(UserProductAssignmentService svc){ this.svc = svc; }
 
+    // Create: POST "/api/v1/assignments" + UserProductAssignmentDto(userId,productId,role) (Body)
     @PostMapping
     public ResponseEntity<UserProductAssignmentDto> assign(@Valid @RequestBody UserProductAssignmentDto req,
                                                            @RequestParam("actorId") UUID actorId) {
@@ -27,6 +28,7 @@ public class UserProductAssignmentController {
         return ResponseEntity.created(URI.create("/api/v1/assignments/" + a.getId())).body(dto);
     }
 
+    // Read: GET "/api/v1/assignments?userId={?}&productId={?}"
     @GetMapping
     public ResponseEntity<List<UserProductAssignmentDto>> list(@RequestParam(required = false) UUID userId,
                                                                @RequestParam(required = false) UUID productId) {
@@ -34,6 +36,7 @@ public class UserProductAssignmentController {
         return ResponseEntity.ok(list);
     }
 
+    // Delete: DELETE “/api/v1/assignments?actorId={?}&userId={?}&productId={?}"
     @DeleteMapping
     public ResponseEntity<Void> deleteAssignments(
             @RequestParam UUID actorId,
