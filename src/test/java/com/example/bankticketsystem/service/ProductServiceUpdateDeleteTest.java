@@ -1,6 +1,6 @@
 package com.example.bankticketsystem.service;
 
-import com.example.bankticketsystem.dto.ProductCreateRequest;
+import com.example.bankticketsystem.dto.request.ProductRequest;
 import com.example.bankticketsystem.exception.ConflictException;
 import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.Product;
@@ -60,7 +60,7 @@ class ProductServiceUpdateDeleteTest {
     @Test
     void adminCanUpdateProduct() {
         when(userRepository.findById(adminId)).thenReturn(Optional.of(admin));
-        ProductCreateRequest req = new ProductCreateRequest();
+        ProductRequest req = new ProductRequest();
         req.setName("New name");
         req.setDescription("New desc");
 
@@ -76,7 +76,7 @@ class ProductServiceUpdateDeleteTest {
         when(assignmentRepository.existsByUserIdAndProductIdAndRoleOnProduct(ownerId, productId, AssignmentRole.PRODUCT_OWNER))
                 .thenReturn(true);
 
-        ProductCreateRequest req = new ProductCreateRequest();
+        ProductRequest req = new ProductRequest();
         req.setName("Owner name");
         req.setDescription("Owner desc");
 
@@ -92,7 +92,7 @@ class ProductServiceUpdateDeleteTest {
         when(assignmentRepository.existsByUserIdAndProductIdAndRoleOnProduct(otherId, productId, AssignmentRole.PRODUCT_OWNER))
                 .thenReturn(false);
 
-        ProductCreateRequest req = new ProductCreateRequest();
+        ProductRequest req = new ProductRequest();
         req.setName("X");
         req.setDescription("Y");
 

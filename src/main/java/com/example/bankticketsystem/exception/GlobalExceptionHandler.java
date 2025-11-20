@@ -9,6 +9,7 @@ import org.springframework.web.context.request.WebRequest;
 import java.time.Instant;
 import java.util.*;
 import org.springframework.validation.FieldError;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -48,6 +49,14 @@ public class GlobalExceptionHandler {
             errors.add(e);
         }
         return buildError(HttpStatus.BAD_REQUEST, "Validation failed", request, errors);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<?> handleUUIDException(MethodArgumentTypeMismatchException ex) {
+        if (ex.getRequiredType() == UUID.class) {
+            throw new BadRequestException("Invalid UUID: " + ex.getValue());
+        }
+        throw ex;
     }
 
     private ResponseEntity<Object> buildError(HttpStatus status, String message, WebRequest request, List<Map<String,String>> errors) {

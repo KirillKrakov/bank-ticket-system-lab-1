@@ -63,8 +63,8 @@ public class UserService {
         return users.map(this::toDto);
     }
 
-    public Optional<UserResponse> get(UUID id) {
-        return userRepository.findById(id).map(this::toDto);
+    public UserResponse get(UUID id) {
+        return userRepository.findById(id).map(this::toDto).orElse(null);
     }
 
     public UserResponse toDto(User u) {

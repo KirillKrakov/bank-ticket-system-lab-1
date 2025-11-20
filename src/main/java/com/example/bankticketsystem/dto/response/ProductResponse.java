@@ -1,8 +1,8 @@
-package com.example.bankticketsystem.dto;
+package com.example.bankticketsystem.dto.response;
 
 import java.util.UUID;
 
-public class ProductDto {
+public class ProductResponse {
     private UUID id;
     private String name;
     private String description;
