@@ -1,9 +1,7 @@
 package com.example.bankticketsystem.service;
 
-import com.example.bankticketsystem.dto.request.ProductRequest;
-import com.example.bankticketsystem.dto.response.ProductResponse;
-import com.example.bankticketsystem.exception.BadRequestException;
-import com.example.bankticketsystem.exception.ConflictException;
+import com.example.bankticketsystem.dto.ProductDto;
+import com.example.bankticketsystem.exception.*;
 import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.Product;
 import com.example.bankticketsystem.model.enums.AssignmentRole;
@@ -37,8 +35,13 @@ public class ProductService {
         this.applicationRepository = applicationRepository;
     }
 
-    public ProductResponse create(ProductRequest req) {
+    @Transactional
+    public ProductDto create(ProductDto req) {
         if (req == null) throw new BadRequestException("Request is required");
+        if (req.getId() != null) {
+            throw new ForbiddenException("Product ID sets automatically");
+        }
+
         String name = req.getName();
         String description = req.getDescription();
         if (name == null || name.isEmpty()) {
@@ -59,18 +62,18 @@ public class ProductService {
         return toDto(p);
     }
 
-    public Page<ProductResponse> list(int page, int size) {
+    public Page<ProductDto> list(int page, int size) {
         Pageable p = PageRequest.of(page, size);
         Page<Product> products = productRepository.findAll(p);
         return products.map(this::toDto);
     }
 
-    public ProductResponse get(UUID id) {
+    public ProductDto get(UUID id) {
         return productRepository.findById(id).map(this::toDto).orElse(null);
     }
 
-    private ProductResponse toDto(Product p) {
-        ProductResponse d = new ProductResponse();
+    private ProductDto toDto(Product p) {
+        ProductDto d = new ProductDto();
         d.setId(p.getId());
         d.setName(p.getName());
         d.setDescription(p.getDescription());
@@ -78,20 +81,26 @@ public class ProductService {
     }
 
     @Transactional
-    public ProductResponse updateProduct(UUID productId, ProductRequest req, UUID actorId) {
+    public ProductDto updateProduct(UUID productId, ProductDto req, UUID actorId) {
         if (req == null) throw new BadRequestException("Request is required");
+        if (req.getId() != null) {
+            throw new ForbiddenException("Product ID has been already set automatically");
+        }
 
+        if (actorId == null) {
+            throw new UnauthorizedException("You must specify the actorId to authorize in this request");
+        }
         var actor = userRepository.findById(actorId)
-                .orElseThrow(() -> new BadRequestException("Actor not found: " + actorId));
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new BadRequestException("Product not found: " + productId));
+                .orElseThrow(() -> new NotFoundException("Product not found: " + productId));
 
         boolean isAdmin = actor.getRole() == UserRole.ROLE_ADMIN;
         boolean isOwner = assignmentRepository.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
 
         if (!isAdmin && !isOwner) {
-            throw new ConflictException("Only ADMIN or PRODUCT_OWNER can update product");
+            throw new ForbiddenException("Only ADMIN or PRODUCT_OWNER can update product");
         }
 
         if (req.getName() != null) product.setName(req.getName());
@@ -102,11 +111,14 @@ public class ProductService {
 
     @Transactional
     public void deleteProduct(UUID productId, UUID actorId) {
+        if (actorId == null) {
+            throw new UnauthorizedException("You must specify the actorId to authorize in this request");
+        }
         var actor = userRepository.findById(actorId)
-                .orElseThrow(() -> new BadRequestException("Actor not found: " + actorId));
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new BadRequestException("Product not found: " + productId));
+                .orElseThrow(() -> new NotFoundException("Product not found: " + productId));
 
         boolean isAdmin = actor.getRole() == UserRole.ROLE_ADMIN;
         boolean isOwner = assignmentRepository.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);

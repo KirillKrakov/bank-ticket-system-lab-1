@@ -3,11 +3,15 @@ package com.example.bankticketsystem.dto;
 import java.time.Instant;
 import java.util.UUID;
 import com.example.bankticketsystem.model.enums.AssignmentRole;
+import jakarta.validation.constraints.NotNull;
 
-public class AssignmentDto {
+public class UserProductAssignmentDto {
     private UUID id;
+    @NotNull
     private UUID userId;
+    @NotNull
     private UUID productId;
+    @NotNull
     private AssignmentRole role;
     private Instant assignedAt;
 

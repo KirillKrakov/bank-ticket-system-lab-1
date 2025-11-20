@@ -19,9 +19,14 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request, null);
     }
 
-    @ExceptionHandler(ConflictException.class)
-    public ResponseEntity<Object> handleConflict(ConflictException ex, WebRequest request) {
-        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request, null);
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<Object> handleConflict(UnauthorizedException ex, WebRequest request) {
+        return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<Object> handleConflict(ForbiddenException ex, WebRequest request) {
+        return buildError(HttpStatus.FORBIDDEN, ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(NotFoundException.class)
@@ -29,9 +34,9 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request, null);
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Object> handleGeneric(Exception ex, WebRequest request) {
-        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage(), request, null);
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<Object> handleConflict(ConflictException ex, WebRequest request) {
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
@@ -57,6 +62,11 @@ public class GlobalExceptionHandler {
             throw new BadRequestException("Invalid UUID: " + ex.getValue());
         }
         throw ex;
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Object> handleGeneric(Exception ex, WebRequest request) {
+        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage(), request, null);
     }
 
     private ResponseEntity<Object> buildError(HttpStatus status, String message, WebRequest request, List<Map<String,String>> errors) {

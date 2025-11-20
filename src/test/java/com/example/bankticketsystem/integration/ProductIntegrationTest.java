@@ -1,7 +1,6 @@
 package com.example.bankticketsystem.integration;
 
-import com.example.bankticketsystem.dto.request.ProductRequest;
-import com.example.bankticketsystem.dto.response.ProductResponse;
+import com.example.bankticketsystem.dto.ProductDto;
 import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.UserRepository;
@@ -58,13 +57,13 @@ public class ProductIntegrationTest {
     @Test
     public void productLifecycle_createListGetUpdateDelete_asAdmin() {
         // 1) create product via controller (POST)
-        ProductRequest createReq = new ProductRequest();
+        ProductDto createReq = new ProductDto();
         createReq.setName("MyProduct");
         createReq.setDescription("Initial description");
 
-        ResponseEntity<ProductResponse> createResp = rest.postForEntity("/api/v1/products", createReq, ProductResponse.class);
+        ResponseEntity<ProductDto> createResp = rest.postForEntity("/api/v1/products", createReq, ProductDto.class);
         assertEquals(HttpStatus.CREATED, createResp.getStatusCode());
-        ProductResponse created = createResp.getBody();
+        ProductDto created = createResp.getBody();
         assertNotNull(created);
         assertNotNull(created.getId());
         assertEquals("MyProduct", created.getName());
@@ -78,16 +77,16 @@ public class ProductIntegrationTest {
         UUID productId = created.getId();
 
         // 2) list should contain the created product
-        ResponseEntity<ProductResponse[]> listResp = rest.getForEntity("/api/v1/products", ProductResponse[].class);
+        ResponseEntity<ProductDto[]> listResp = rest.getForEntity("/api/v1/products", ProductDto[].class);
         assertEquals(HttpStatus.OK, listResp.getStatusCode());
-        ProductResponse[] listBody = listResp.getBody();
+        ProductDto[] listBody = listResp.getBody();
         assertNotNull(listBody);
         assertTrue(Arrays.stream(listBody).anyMatch(p -> productId.equals(p.getId())));
 
         // 3) GET by id should return the product
-        ResponseEntity<ProductResponse> getResp = rest.getForEntity("/api/v1/products/" + productId, ProductResponse.class);
+        ResponseEntity<ProductDto> getResp = rest.getForEntity("/api/v1/products/" + productId, ProductDto.class);
         assertEquals(HttpStatus.OK, getResp.getStatusCode());
-        ProductResponse got = getResp.getBody();
+        ProductDto got = getResp.getBody();
         assertNotNull(got);
         assertEquals("MyProduct", got.getName());
 
@@ -104,23 +103,23 @@ public class ProductIntegrationTest {
         assertNotNull(adminId);
 
         // 5) Update product as admin (PUT /api/v1/products/{id}?actorId=...)
-        ProductRequest updateReq = new ProductRequest();
+        ProductDto updateReq = new ProductDto();
         updateReq.setName("UpdatedProduct");
         updateReq.setDescription("Updated description");
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<ProductRequest> updateEntity = new HttpEntity<>(updateReq, headers);
+        HttpEntity<ProductDto> updateEntity = new HttpEntity<>(updateReq, headers);
 
-        ResponseEntity<ProductResponse> updateResp = rest.exchange(
+        ResponseEntity<ProductDto> updateResp = rest.exchange(
                 "/api/v1/products/" + productId + "?actorId=" + adminId,
                 HttpMethod.PUT,
                 updateEntity,
-                ProductResponse.class
+                ProductDto.class
         );
 
         assertEquals(HttpStatus.OK, updateResp.getStatusCode());
-        ProductResponse updated = updateResp.getBody();
+        ProductDto updated = updateResp.getBody();
         assertNotNull(updated);
         assertEquals("UpdatedProduct", updated.getName());
         assertEquals("Updated description", updated.getDescription());
@@ -136,13 +135,13 @@ public class ProductIntegrationTest {
         assertEquals(HttpStatus.NO_CONTENT, deleteResp.getStatusCode());
 
         // 7) GET after delete should return 404
-        ResponseEntity<ProductResponse> afterDeleteGet = rest.getForEntity("/api/v1/products/" + productId, ProductResponse.class);
+        ResponseEntity<ProductDto> afterDeleteGet = rest.getForEntity("/api/v1/products/" + productId, ProductDto.class);
         assertEquals(HttpStatus.NOT_FOUND, afterDeleteGet.getStatusCode());
 
         // 8) list should no longer contain the deleted product
-        ResponseEntity<ProductResponse[]> finalListResp = rest.getForEntity("/api/v1/products", ProductResponse[].class);
+        ResponseEntity<ProductDto[]> finalListResp = rest.getForEntity("/api/v1/products", ProductDto[].class);
         assertEquals(HttpStatus.OK, finalListResp.getStatusCode());
-        ProductResponse[] finalListBody = finalListResp.getBody();
+        ProductDto[] finalListBody = finalListResp.getBody();
         assertNotNull(finalListBody);
         assertFalse(Arrays.stream(finalListBody).anyMatch(p -> productId.equals(p.getId())));
     }

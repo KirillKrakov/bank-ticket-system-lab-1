@@ -1,7 +1,6 @@
 package com.example.bankticketsystem.controller;
 
-import com.example.bankticketsystem.dto.request.ProductRequest;
-import com.example.bankticketsystem.dto.response.ProductResponse;
+import com.example.bankticketsystem.dto.ProductDto;
 import com.example.bankticketsystem.service.ProductService;
 import com.example.bankticketsystem.exception.BadRequestException;
 import jakarta.validation.Valid;
@@ -24,41 +23,41 @@ public class ProductController {
 
     public ProductController(ProductService productService) { this.productService = productService; }
 
-    // Create: POST "/api/v1/products" + ProductCreateRequest (Body)
+    // Create: POST "/api/v1/products" + ProductDto(name,description) (Body)
     @PostMapping
-    public ResponseEntity<ProductResponse> create(@Valid @RequestBody ProductRequest req, UriComponentsBuilder uriBuilder) {
-        ProductResponse dto = productService.create(req);
+    public ResponseEntity<ProductDto> create(@Valid @RequestBody ProductDto req, UriComponentsBuilder uriBuilder) {
+        ProductDto dto = productService.create(req);
         URI location = uriBuilder.path("/api/v1/products/{id}").buildAndExpand(dto.getId()).toUri();
         return ResponseEntity.created(location).body(dto);
     }
 
     // ReadAll: GET “api/v1/products?page=0&size=20”
     @GetMapping
-    public ResponseEntity<List<ProductResponse>> list(@RequestParam(defaultValue = "0") int page,
-                                                      @RequestParam(defaultValue = "20") int size,
-                                                      HttpServletResponse response) {
+    public ResponseEntity<List<ProductDto>> list(@RequestParam(defaultValue = "0") int page,
+                                                 @RequestParam(defaultValue = "20") int size,
+                                                 HttpServletResponse response) {
         if (size > MAX_PAGE_SIZE) {
             throw new BadRequestException("size cannot be greater than " + MAX_PAGE_SIZE);
         }
-        Page<ProductResponse> p = productService.list(page, size);
+        Page<ProductDto> p = productService.list(page, size);
         response.setHeader("X-Total-Count", String.valueOf(p.getTotalElements()));
         return ResponseEntity.ok(p.getContent());
     }
 
     // Read: GET “/api/v1/products/{id}”
     @GetMapping("/{id}")
-    public ResponseEntity<ProductResponse> get(@PathVariable UUID id) {
-        ProductResponse productResponse = productService.get(id);
-        return productResponse == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(productResponse);
+    public ResponseEntity<ProductDto> get(@PathVariable UUID id) {
+        ProductDto productDto = productService.get(id);
+        return productDto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(productDto);
     }
 
     // Update: PUT “/api/v1/products/{id}?actorId={adminOrOwnerId}” + ProductCreateRequest (Body)
     @PutMapping("/{id}")
-    public ResponseEntity<ProductResponse> updateProduct(@PathVariable("id") UUID id,
-                                                         @Valid @RequestBody ProductRequest req,
-                                                         @RequestParam("actorId") UUID actorId) {
+    public ResponseEntity<ProductDto> updateProduct(@PathVariable("id") UUID id,
+                                                    @Valid @RequestBody ProductDto req,
+                                                    @RequestParam("actorId") UUID actorId) {
         if (actorId == null) throw new BadRequestException("actorId required");
-        ProductResponse dto = productService.updateProduct(id, req, actorId);
+        ProductDto dto = productService.updateProduct(id, req, actorId);
         return ResponseEntity.ok(dto);
     }
 

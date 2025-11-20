@@ -1,6 +1,6 @@
 package com.example.bankticketsystem.service;
 
-import com.example.bankticketsystem.dto.AssignmentDto;
+import com.example.bankticketsystem.dto.UserProductAssignmentDto;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.exception.ConflictException;
 import com.example.bankticketsystem.exception.NotFoundException;
@@ -59,7 +59,7 @@ public class UserProductAssignmentService {
         return repo.save(a);
     }
 
-    public List<AssignmentDto> list(UUID userId, UUID productId) {
+    public List<UserProductAssignmentDto> list(UUID userId, UUID productId) {
         List<UserProductAssignment> res;
         if (userId != null) res = repo.findByUserId(userId);
         else if (productId != null) res = repo.findByProductId(productId);
@@ -91,8 +91,8 @@ public class UserProductAssignmentService {
         }
     }
 
-    public AssignmentDto toDto(UserProductAssignment a) {
-        AssignmentDto dto = new AssignmentDto();
+    public UserProductAssignmentDto toDto(UserProductAssignment a) {
+        UserProductAssignmentDto dto = new UserProductAssignmentDto();
         dto.setId(a.getId());
         dto.setUserId(a.getUser() != null ? a.getUser().getId() : null);
         dto.setProductId(a.getProduct() != null ? a.getProduct().getId() : null);

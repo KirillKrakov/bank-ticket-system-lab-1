@@ -1,6 +1,5 @@
 package com.example.bankticketsystem.controller;
 
-import com.example.bankticketsystem.dto.ApplicationDto;
 import com.example.bankticketsystem.dto.TagDto;
 import com.example.bankticketsystem.service.TagService;
 import com.example.bankticketsystem.service.ApplicationService;
@@ -8,7 +7,6 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 
 @RestController
