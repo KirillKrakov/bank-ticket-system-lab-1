@@ -1,14 +1,19 @@
 package com.example.bankticketsystem.service;
 
 import com.example.bankticketsystem.dto.AssignmentDto;
+import com.example.bankticketsystem.exception.BadRequestException;
+import com.example.bankticketsystem.exception.ConflictException;
 import com.example.bankticketsystem.exception.NotFoundException;
 import com.example.bankticketsystem.model.entity.*;
 import com.example.bankticketsystem.model.enums.AssignmentRole;
+import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -25,12 +30,32 @@ public class UserProductAssignmentService {
         this.repo = repo; this.userRepo = userRepo; this.productRepo = productRepo;
     }
 
-    public UserProductAssignment assign(UUID userId, UUID productId, AssignmentRole role) {
+    public UserProductAssignment assign(UUID actorId, UUID userId, UUID productId, AssignmentRole role) {
         User u = userRepo.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
         Product p = productRepo.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
+
+        var actor = userRepo.findById(actorId).orElseThrow(() -> new BadRequestException("Actor not found: " + actorId));
+        boolean isAdmin = actor.getRole() == UserRole.ROLE_ADMIN;
+        boolean isOwner = repo.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
+
+        if (!isAdmin && !isOwner) {
+            throw new ConflictException("Only ADMIN or PRODUCT_OWNER can assign new products!");
+        }
+
+        Optional<UserProductAssignment> existingAssignment = repo.findByUserIdAndProductId(userId, productId);
         UserProductAssignment a = new UserProductAssignment();
-        a.setId(UUID.randomUUID());
-        a.setUser(u); a.setProduct(p); a.setRoleOnProduct(role); a.setAssignedAt(Instant.now());
+
+        if (existingAssignment.isPresent()) {
+            a = existingAssignment.get();
+            a.setRoleOnProduct(role);
+            a.setAssignedAt(Instant.now());
+        } else {
+            a.setId(UUID.randomUUID());
+            a.setUser(u);
+            a.setProduct(p);
+            a.setRoleOnProduct(role);
+            a.setAssignedAt(Instant.now());
+        }
         return repo.save(a);
     }
 
@@ -40,6 +65,30 @@ public class UserProductAssignmentService {
         else if (productId != null) res = repo.findByProductId(productId);
         else res = repo.findAll();
         return res.stream().map(this::toDto).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void deleteAssignments(UUID actorId, UUID userId, UUID productId) {
+        var actor = userRepo.findById(actorId)
+                .orElseThrow(() -> new BadRequestException("Actor not found: " + actorId));
+
+        if (actor.getRole() != UserRole.ROLE_ADMIN) {
+            throw new ConflictException("Only ADMIN can delete assignments!");
+        }
+
+        if (userId != null && productId != null) {
+            User u = userRepo.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+            Product p = productRepo.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
+            repo.deleteByUserIdAndProductId(userId, productId);
+        } else if (userId != null) {
+            User u = userRepo.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+            repo.deleteByUserId(userId);
+        } else if (productId != null) {
+            Product p = productRepo.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
+            repo.deleteByProductId(productId);
+        } else {
+            repo.deleteAll();
+        }
     }
 
     public AssignmentDto toDto(UserProductAssignment a) {

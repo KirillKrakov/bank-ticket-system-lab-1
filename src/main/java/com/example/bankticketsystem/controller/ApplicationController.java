@@ -75,6 +75,12 @@ public class ApplicationController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/{id}/tags")
+    public ResponseEntity<Void> removeTags(@PathVariable UUID id, @RequestBody List<String> tags) {
+        applicationService.removeTags(id, tags);
+        return ResponseEntity.noContent().build();
+    }
+
     /**
      * PUT /api/v1/applications/{id}/status?actorId={actorId}
      */

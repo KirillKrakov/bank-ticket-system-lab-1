@@ -20,8 +20,10 @@ public class UserProductAssignmentController {
     public UserProductAssignmentController(UserProductAssignmentService svc){ this.svc = svc; }
 
     @PostMapping
-    public ResponseEntity<AssignmentDto> assign(@Valid @RequestBody AssignmentCreateRequest req) {
-        var a = svc.assign(req.getUserId(), req.getProductId(), req.getRole());
+    public ResponseEntity<AssignmentDto> assign(@Valid @RequestBody AssignmentCreateRequest req,
+                                                @RequestParam("actorId") UUID actorId) {
+
+        var a = svc.assign(actorId, req.getUserId(), req.getProductId(), req.getRole());
         AssignmentDto dto = svc.toDto(a);
         return ResponseEntity.created(URI.create("/api/v1/assignments/" + a.getId())).body(dto);
     }
@@ -31,5 +33,15 @@ public class UserProductAssignmentController {
                                                     @RequestParam(required = false) UUID productId) {
         var list = svc.list(userId, productId);
         return ResponseEntity.ok(list);
+    }
+
+    @DeleteMapping
+    public ResponseEntity<Void> deleteAssignments(
+            @RequestParam UUID actorId,
+            @RequestParam(required = false) UUID userId,
+            @RequestParam(required = false) UUID productId) {
+
+        svc.deleteAssignments(actorId, userId, productId);
+        return ResponseEntity.noContent().build();
     }
 }

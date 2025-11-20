@@ -142,6 +142,16 @@ public class ApplicationService {
         applicationRepository.save(app);
     }
 
+    @Transactional
+    public void removeTags(UUID applicationId, List<String> tagNames) {
+        Application app = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new NotFoundException("Application not found"));
+
+        app.getTags().removeIf(tag -> tagNames.contains(tag.getName()));
+
+        applicationRepository.save(app);
+    }
+
     public Page<ApplicationDto> listByTag(String tagName, int page, int size) {
         Pageable p = PageRequest.of(page, size);
         Page<Application> apps = applicationRepository.findByTags_Name(tagName, p);
