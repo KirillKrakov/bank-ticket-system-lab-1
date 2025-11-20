@@ -1,12 +1,11 @@
 package com.example.bankticketsystem.service;
 
-import com.example.bankticketsystem.dto.ProductCreateRequest;
-import com.example.bankticketsystem.dto.ProductDto;
+import com.example.bankticketsystem.dto.request.ProductRequest;
+import com.example.bankticketsystem.dto.response.ProductResponse;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.exception.ConflictException;
 import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.Product;
-import com.example.bankticketsystem.model.entity.UserProductAssignment;
 import com.example.bankticketsystem.model.enums.AssignmentRole;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.ApplicationRepository;
@@ -38,7 +37,20 @@ public class ProductService {
         this.applicationRepository = applicationRepository;
     }
 
-    public ProductDto create(ProductCreateRequest req) {
+    public ProductResponse create(ProductRequest req) {
+        if (req == null) throw new BadRequestException("Request is required");
+        String name = req.getName();
+        String description = req.getDescription();
+        if (name == null || name.isEmpty()) {
+            throw new BadRequestException("Product name must be in request body and not empty");
+        }
+        if (description == null || description.isEmpty()) {
+            throw new BadRequestException("Product description must be in request body and not empty");
+        }
+        if (productRepository.existsByName(name.trim())) {
+            throw new ConflictException("String already in use");
+        }
+
         Product p = new Product();
         p.setId(UUID.randomUUID());
         p.setName(req.getName());
@@ -47,17 +59,18 @@ public class ProductService {
         return toDto(p);
     }
 
-    public Page<ProductDto> list(int page, int size) {
+    public Page<ProductResponse> list(int page, int size) {
         Pageable p = PageRequest.of(page, size);
-        return productRepository.findAll(p).map(this::toDto);
+        Page<Product> products = productRepository.findAll(p);
+        return products.map(this::toDto);
     }
 
-    public ProductDto get(UUID id) {
+    public ProductResponse get(UUID id) {
         return productRepository.findById(id).map(this::toDto).orElse(null);
     }
 
-    private ProductDto toDto(Product p) {
-        ProductDto d = new ProductDto();
+    private ProductResponse toDto(Product p) {
+        ProductResponse d = new ProductResponse();
         d.setId(p.getId());
         d.setName(p.getName());
         d.setDescription(p.getDescription());
@@ -65,7 +78,7 @@ public class ProductService {
     }
 
     @Transactional
-    public ProductDto updateProduct(UUID productId, ProductCreateRequest req, UUID actorId) {
+    public ProductResponse updateProduct(UUID productId, ProductRequest req, UUID actorId) {
         if (req == null) throw new BadRequestException("Request is required");
 
         var actor = userRepository.findById(actorId)
@@ -81,8 +94,8 @@ public class ProductService {
             throw new ConflictException("Only ADMIN or PRODUCT_OWNER can update product");
         }
 
-        product.setName(req.getName());
-        product.setDescription(req.getDescription());
+        if (req.getName() != null) product.setName(req.getName());
+        if (req.getDescription() != null) product.setDescription(req.getDescription());
         Product saved = productRepository.save(product);
         return toDto(saved);
     }
@@ -105,7 +118,7 @@ public class ProductService {
         try {
             List<Application> apps = applicationRepository.findByProductId(productId);
             for (Application a : apps) {
-                applicationRepository.delete(a); // JPA will cascade delete history/documents (you have cascade = ALL there)
+                applicationRepository.delete(a);
             }
 
             assignmentRepository.deleteByProductId(productId);

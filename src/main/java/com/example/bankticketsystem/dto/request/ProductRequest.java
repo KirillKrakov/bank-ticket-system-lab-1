@@ -1,14 +1,12 @@
-package com.example.bankticketsystem.dto;
+package com.example.bankticketsystem.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public class ProductCreateRequest {
-    @NotBlank
-    @Size(max = 200)
+public class ProductRequest {
+    @Size(min = 1, max = 200)
     private String name;
 
-    @Size(max = 1000)
+    @Size(min = 1, max = 1000)
     private String description;
 
     public String getName() { return name; }

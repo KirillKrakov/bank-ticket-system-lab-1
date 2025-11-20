@@ -55,23 +55,6 @@ public class UserIntegrationTest {
     }
 
     @Test
-    public void createUser_endpoint_returnsCreated() {
-        UserRequest req = new UserRequest();
-        req.setUsername("integrationUser");
-        req.setEmail("int@example.com");
-        req.setPassword("password123");
-
-        ResponseEntity<UserResponse> resp = rest.postForEntity("/api/v1/users", req, UserResponse.class);
-
-        assertEquals(HttpStatus.CREATED, resp.getStatusCode());
-        assertNotNull(resp.getBody());
-        assertNotNull(resp.getBody().getId());
-        assertEquals("integrationUser", resp.getBody().getUsername());
-        assertEquals("int@example.com", resp.getBody().getEmail());
-        assertNotNull(resp.getBody().getCreatedAt());
-    }
-
-    @Test
     public void fullLifecycle_withAdminActor() {
         // 1) create a normal user via POST
         UserRequest createReq = new UserRequest();
