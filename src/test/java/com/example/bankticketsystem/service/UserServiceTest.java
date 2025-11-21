@@ -1,19 +1,19 @@
 package com.example.bankticketsystem.service;
 
 import com.example.bankticketsystem.dto.UserDto;
-import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.exception.ConflictException;
 import com.example.bankticketsystem.exception.NotFoundException;
 import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.UserRole;
+import com.example.bankticketsystem.repository.ApplicationRepository;
 import com.example.bankticketsystem.repository.UserRepository;
-import org.aspectj.weaver.ast.Not;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,6 +24,9 @@ class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private ApplicationRepository applicationRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -219,6 +222,7 @@ class UserServiceTest {
 
         when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.empty());
+        when(applicationRepository.findByApplicantId(id)).thenReturn(List.of());
 
         assertThrows(NotFoundException.class, () -> userService.deleteUser(id, actorId));
         verify(userRepository, times(1)).findById(actorId);

@@ -3,6 +3,7 @@ package com.example.bankticketsystem.service;
 import com.example.bankticketsystem.dto.ApplicationDto;
 import com.example.bankticketsystem.dto.DocumentDto;
 import com.example.bankticketsystem.dto.TagDto;
+import com.example.bankticketsystem.exception.NotFoundException;
 import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.Document;
 import com.example.bankticketsystem.model.entity.Tag;
@@ -101,7 +102,7 @@ public class TagServiceTest {
     @Test
     public void getTagWithApplications_tagNotFound_throws() {
         when(repo.findByNameWithApplications("nonexistent")).thenReturn(Optional.empty());
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> tagService.getTagWithApplications("nonexistent"));
+        NotFoundException ex = assertThrows(NotFoundException.class, () -> tagService.getTagWithApplications("nonexistent"));
         assertTrue(ex.getMessage().contains("Tag not found"));
         verify(repo, times(1)).findByNameWithApplications("nonexistent");
     }

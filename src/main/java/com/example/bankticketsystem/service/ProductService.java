@@ -124,7 +124,7 @@ public class ProductService {
         boolean isOwner = assignmentRepository.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
 
         if (!isAdmin && !isOwner) {
-            throw new ConflictException("Only ADMIN or PRODUCT_OWNER can delete product");
+            throw new ForbiddenException("Only ADMIN or PRODUCT_OWNER can delete product");
         }
 
         try {

@@ -3,6 +3,7 @@ package com.example.bankticketsystem.service;
 import com.example.bankticketsystem.dto.UserProductAssignmentDto;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.exception.ConflictException;
+import com.example.bankticketsystem.exception.ForbiddenException;
 import com.example.bankticketsystem.exception.NotFoundException;
 import com.example.bankticketsystem.model.entity.Product;
 import com.example.bankticketsystem.model.entity.User;
@@ -135,7 +136,7 @@ public class AssignmentServiceTest {
         when(userRepo.findById(actorId)).thenReturn(Optional.of(actor));
         when(repo.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER)).thenReturn(false);
 
-        assertThrows(ConflictException.class, () -> svc.assign(actorId, userId, productId, AssignmentRole.PRODUCT_OWNER));
+        assertThrows(ForbiddenException.class, () -> svc.assign(actorId, userId, productId, AssignmentRole.PRODUCT_OWNER));
 
         verify(repo, never()).save(any());
     }
@@ -176,7 +177,7 @@ public class AssignmentServiceTest {
         when(productRepo.findById(productId)).thenReturn(Optional.of(product));
         when(userRepo.findById(actorId)).thenReturn(Optional.empty());
 
-        assertThrows(BadRequestException.class, () -> svc.assign(actorId, userId, productId, AssignmentRole.PRODUCT_OWNER));
+        assertThrows(NotFoundException.class, () -> svc.assign(actorId, userId, productId, AssignmentRole.PRODUCT_OWNER));
     }
 
     // -----------------------
@@ -261,7 +262,7 @@ public class AssignmentServiceTest {
     public void deleteAssignments_throwsBadRequest_whenActorMissing() {
         UUID actorId = UUID.randomUUID();
         when(userRepo.findById(actorId)).thenReturn(Optional.empty());
-        assertThrows(BadRequestException.class, () -> svc.deleteAssignments(actorId, null, null));
+        assertThrows(NotFoundException.class, () -> svc.deleteAssignments(actorId, null, null));
     }
 
     @Test
@@ -269,7 +270,7 @@ public class AssignmentServiceTest {
         UUID actorId = UUID.randomUUID();
         User actor = new User(); actor.setId(actorId); actor.setRole(UserRole.ROLE_USER);
         when(userRepo.findById(actorId)).thenReturn(Optional.of(actor));
-        assertThrows(ConflictException.class, () -> svc.deleteAssignments(actorId, null, null));
+        assertThrows(ForbiddenException.class, () -> svc.deleteAssignments(actorId, null, null));
     }
 
     @Test

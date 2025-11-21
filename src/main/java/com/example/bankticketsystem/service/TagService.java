@@ -3,6 +3,7 @@ package com.example.bankticketsystem.service;
 import com.example.bankticketsystem.dto.ApplicationDto;
 import com.example.bankticketsystem.dto.DocumentDto;
 import com.example.bankticketsystem.dto.TagDto;
+import com.example.bankticketsystem.exception.NotFoundException;
 import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.Tag;
 import com.example.bankticketsystem.repository.TagRepository;
@@ -42,7 +43,7 @@ public class TagService {
     @Transactional(readOnly = true)
     public TagDto getTagWithApplications(String name) {
         Tag tag = repo.findByNameWithApplications(name)
-                .orElseThrow(() -> new RuntimeException("Tag not found: " + name));
+                .orElseThrow(() -> new NotFoundException("Tag not found: " + name));
 
         TagDto dto = toDto(tag);
 

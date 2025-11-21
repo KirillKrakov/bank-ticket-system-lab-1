@@ -1,9 +1,7 @@
 package com.example.bankticketsystem.service;
 
 import com.example.bankticketsystem.dto.UserProductAssignmentDto;
-import com.example.bankticketsystem.exception.BadRequestException;
-import com.example.bankticketsystem.exception.ConflictException;
-import com.example.bankticketsystem.exception.NotFoundException;
+import com.example.bankticketsystem.exception.*;
 import com.example.bankticketsystem.model.entity.*;
 import com.example.bankticketsystem.model.enums.AssignmentRole;
 import com.example.bankticketsystem.model.enums.UserRole;
@@ -34,12 +32,12 @@ public class UserProductAssignmentService {
         User u = userRepo.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
         Product p = productRepo.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
 
-        var actor = userRepo.findById(actorId).orElseThrow(() -> new BadRequestException("Actor not found: " + actorId));
+        var actor = userRepo.findById(actorId).orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
         boolean isAdmin = actor.getRole() == UserRole.ROLE_ADMIN;
         boolean isOwner = repo.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
 
         if (!isAdmin && !isOwner) {
-            throw new ConflictException("Only ADMIN or PRODUCT_OWNER can assign new products!");
+            throw new ForbiddenException("Only ADMIN or PRODUCT_OWNER can assign new products!");
         }
 
         Optional<UserProductAssignment> existingAssignment = repo.findByUserIdAndProductId(userId, productId);
@@ -69,11 +67,14 @@ public class UserProductAssignmentService {
 
     @Transactional
     public void deleteAssignments(UUID actorId, UUID userId, UUID productId) {
+        if (actorId == null) {
+            throw new UnauthorizedException("You must specify the actorId to authorize in this request");
+        }
         var actor = userRepo.findById(actorId)
-                .orElseThrow(() -> new BadRequestException("Actor not found: " + actorId));
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
         if (actor.getRole() != UserRole.ROLE_ADMIN) {
-            throw new ConflictException("Only ADMIN can delete assignments!");
+            throw new ForbiddenException("Only ADMIN can delete assignments!");
         }
 
         if (userId != null && productId != null) {

@@ -338,7 +338,7 @@ public class ProductServiceTest {
         when(assignmentRepository.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
                 .thenReturn(false);
 
-        assertThrows(ConflictException.class, () -> productService.deleteProduct(productId, actorId));
+        assertThrows(ForbiddenException.class, () -> productService.deleteProduct(productId, actorId));
     }
 
     @Test

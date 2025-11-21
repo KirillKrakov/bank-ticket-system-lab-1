@@ -16,4 +16,5 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID>,
     long countByApplicantId(UUID applicantId);
     long countByProductId(UUID productId);
     List<Application> findByProductId(UUID productId);
+    List<Application> findByApplicantId(UUID applicantId);
 }

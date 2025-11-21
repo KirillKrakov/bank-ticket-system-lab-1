@@ -2,8 +2,10 @@ package com.example.bankticketsystem.service;
 
 import com.example.bankticketsystem.dto.UserDto;
 import com.example.bankticketsystem.exception.*;
+import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.UserRole;
+import com.example.bankticketsystem.repository.ApplicationRepository;
 import com.example.bankticketsystem.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -11,6 +13,7 @@ import org.springframework.data.domain.*;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -18,10 +21,13 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ApplicationRepository applicationRepository;
 
     public UserService(UserRepository userRepository,
+                       ApplicationRepository applicationRepository,
                        PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.applicationRepository = applicationRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -79,7 +85,7 @@ public class UserService {
     }
 
     @Transactional
-    public UserDto updateUser(UUID id, UUID actorId, UserDto req) {
+    public UserDto updateUser(UUID userId, UUID actorId, UserDto req) {
         if (req == null) throw new BadRequestException("Request is required");
         if (req.getId() != null || req.getCreatedAt() != null) {
             throw new ForbiddenException("Product ID and time of product creation has been already set automatically");
@@ -92,8 +98,8 @@ public class UserService {
         if (actor.getRole() != UserRole.ROLE_ADMIN) {
             throw new ForbiddenException("Only ADMIN can update user info");
         }
-        User existing = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found: " + id));
+        User existing = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
 
         if (req.getUsername() != null) existing.setUsername(req.getUsername());
         if (req.getEmail() != null) existing.setEmail(req.getEmail());
@@ -104,7 +110,7 @@ public class UserService {
     }
 
     @Transactional
-    public void deleteUser(UUID id, UUID actorId) {
+    public void deleteUser(UUID userId, UUID actorId) {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
         }
@@ -114,10 +120,18 @@ public class UserService {
             throw new ForbiddenException("Only ADMIN can delete users");
         }
 
-        User existing = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found: " + id));
+        User existing = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
 
-        userRepository.delete(existing);
+        try {
+            List<Application> apps = applicationRepository.findByApplicantId(userId);
+            for (Application a : apps) {
+                applicationRepository.delete(a);
+            }
+            userRepository.delete(existing);
+        } catch (Exception ex) {
+            throw new ConflictException("Failed to delete user and its applications: " + ex.getMessage());
+        }
     }
 
     @Transactional
@@ -146,7 +160,7 @@ public class UserService {
         User actor = userRepository.findById(actorId)
                 .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
         if (actor.getRole() != UserRole.ROLE_ADMIN) {
-            throw new ConflictException("Only ADMIN can demote");
+            throw new ForbiddenException("Only ADMIN can demote");
         }
 
         User u = userRepository.findById(id)
