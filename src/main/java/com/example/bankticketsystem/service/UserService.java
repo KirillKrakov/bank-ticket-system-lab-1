@@ -31,8 +31,8 @@ public class UserService {
     @Transactional
     public UserDto create(UserDto req) {
         if (req == null) throw new BadRequestException("Request is required");
-        if (req.getId() != null || req.getCreatedAt() != null) {
-            throw new ForbiddenException("User ID and time of user creation sets automatically");
+        if (req.getId() != null || req.getCreatedAt() != null || req.getRole() != null) {
+            throw new ForbiddenException("User ID, user role and time of user creation sets automatically");
         }
         if ((req.getUsername() == null) || (req.getEmail() == null) || (req.getPassword() == null)) {
             throw new BadRequestException("Username, email and password must be in request body");

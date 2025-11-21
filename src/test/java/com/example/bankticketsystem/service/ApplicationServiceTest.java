@@ -8,6 +8,8 @@ import com.example.bankticketsystem.model.entity.*;
 import com.example.bankticketsystem.model.enums.ApplicationStatus;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.*;
+import com.example.bankticketsystem.util.ApplicationPage;
+import com.example.bankticketsystem.util.CursorUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
@@ -198,12 +200,45 @@ public class ApplicationServiceTest {
     // streamApplications tests
     // -----------------------
     @Test
-    public void stream_callsRepositoryWithCappedLimit_andMapsToDto() {
-        List<Application> apps = List.of(new Application(), new Application());
-        when(applicationRepository.findByKeyset(null, null, 5)).thenReturn(apps);
-        List<com.example.bankticketsystem.dto.ApplicationDto> out = applicationService.stream(null, 5);
-        assertEquals(2, out.size());
-        verify(applicationRepository, times(1)).findByKeyset(null, null, 5);
+    public void streamWithNextCursor_callsFirstPageRepository_whenCursorIsNull() {
+        Application a1 = new Application();
+        a1.setId(UUID.randomUUID());
+        a1.setCreatedAt(Instant.parse("2024-01-01T00:00:00Z"));
+
+        Application a2 = new Application();
+        a2.setId(UUID.randomUUID());
+        a2.setCreatedAt(Instant.parse("2024-01-01T00:00:10Z"));
+
+        List<Application> apps = List.of(a1, a2);
+
+        when(applicationRepository.findFirstPage(5)).thenReturn(apps);
+
+        ApplicationPage page = applicationService.streamWithNextCursor(null, 5);
+
+        assertNotNull(page);
+        assertEquals(2, page.items().size());
+        verify(applicationRepository, times(1)).findFirstPage(5);
+
+        String expectedCursor = CursorUtil.encode(a2.getCreatedAt(), a2.getId());
+        assertEquals(expectedCursor, page.nextCursor());
+    }
+
+    @Test
+    public void streamWithNextCursor_callsFindByKeyset_whenCursorProvided() {
+        CursorUtil.Decoded dec = new CursorUtil.Decoded(Instant.parse("2024-01-01T00:00:05Z"), UUID.randomUUID());
+        String cursor = CursorUtil.encode(dec.timestamp, dec.id);
+
+        Application a3 = new Application();
+        a3.setId(UUID.randomUUID());
+        a3.setCreatedAt(Instant.parse("2024-01-01T00:00:04Z"));
+
+        when(applicationRepository.findByKeyset(dec.timestamp, dec.id, 5)).thenReturn(List.of(a3));
+
+        ApplicationPage page = applicationService.streamWithNextCursor(cursor, 5);
+
+        verify(applicationRepository, times(1)).findByKeyset(dec.timestamp, dec.id, 5);
+        assertEquals(1, page.items().size());
+        assertEquals(CursorUtil.encode(a3.getCreatedAt(), a3.getId()), page.nextCursor());
     }
 
     // -----------------------

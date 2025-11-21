@@ -4,6 +4,7 @@ import com.example.bankticketsystem.dto.ApplicationDto;
 import com.example.bankticketsystem.dto.ApplicationHistoryDto;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.repository.UserRepository;
+import com.example.bankticketsystem.util.ApplicationPage;
 import com.example.bankticketsystem.service.ApplicationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -93,8 +95,14 @@ public class ApplicationController {
         if (limit > 50) {
             throw new BadRequestException("limit cannot be greater than 50");
         }
-        var list = applicationService.stream(cursor, limit);
-        return ResponseEntity.ok(list);
+
+        ApplicationPage page = applicationService.streamWithNextCursor(cursor, limit);
+
+        HttpHeaders headers = new HttpHeaders();
+        if (page.nextCursor() != null) {
+            headers.add("X-Next-Cursor", page.nextCursor());
+        }
+        return ResponseEntity.ok().headers(headers).body(page.items());
     }
 
     // Update(addTags): PUT “/api/v1/applications/{id}/tags?actorId={applicantOrManagerId}” + List<String> tags (Body)
