@@ -1,8 +1,6 @@
 package com.example.bankticketsystem.service;
 
-import com.example.bankticketsystem.dto.ApplicationHistoryDto;
-import com.example.bankticketsystem.dto.ApplicationDto;
-import com.example.bankticketsystem.dto.DocumentDto;
+import com.example.bankticketsystem.dto.*;
 import com.example.bankticketsystem.exception.*;
 import com.example.bankticketsystem.model.entity.*;
 import com.example.bankticketsystem.model.enums.ApplicationStatus;
@@ -39,7 +37,7 @@ public class ApplicationServiceTest {
     public void setUp() {
         MockitoAnnotations.openMocks(this);
         applicationService = new ApplicationService(applicationRepository, userRepository, productRepository,
-                documentRepository, historyRepository, tagService, applicationHistoryRepository);
+                historyRepository, tagService, applicationHistoryRepository);
     }
 
     // -----------------------
@@ -51,38 +49,18 @@ public class ApplicationServiceTest {
     }
 
     @Test
-    public void createApplication_idOrCreatedAtPresent_throwsForbidden() {
-        ApplicationDto req = new ApplicationDto();
-        req.setId(UUID.randomUUID());
-        assertThrows(ForbiddenException.class, () -> applicationService.createApplication(req));
-
-        ApplicationDto req2 = new ApplicationDto();
-        req2.setCreatedAt(Instant.now());
-        assertThrows(ForbiddenException.class, () -> applicationService.createApplication(req2));
-    }
-
-    @Test
     public void createApplication_missingApplicantOrProduct_throwsBadRequest() {
-        ApplicationDto req = new ApplicationDto();
+        ApplicationRequest req = new ApplicationRequest();
         req.setApplicantId(null);
         req.setProductId(null);
         assertThrows(BadRequestException.class, () -> applicationService.createApplication(req));
     }
 
     @Test
-    public void createApplication_statusProvided_throwsForbidden() {
-        ApplicationDto req = new ApplicationDto();
-        req.setApplicantId(UUID.randomUUID());
-        req.setProductId(UUID.randomUUID());
-        req.setStatus(ApplicationStatus.APPROVED);
-        assertThrows(ForbiddenException.class, () -> applicationService.createApplication(req));
-    }
-
-    @Test
     public void createApplication_applicantNotFound_throwsNotFound() {
         UUID aid = UUID.randomUUID();
         UUID pid = UUID.randomUUID();
-        ApplicationDto req = new ApplicationDto();
+        ApplicationRequest req = new ApplicationRequest();
         req.setApplicantId(aid);
         req.setProductId(pid);
 
@@ -94,7 +72,7 @@ public class ApplicationServiceTest {
     public void createApplication_productNotFound_throwsNotFound() {
         UUID aid = UUID.randomUUID();
         UUID pid = UUID.randomUUID();
-        ApplicationDto req = new ApplicationDto();
+        ApplicationRequest req = new ApplicationRequest();
         req.setApplicantId(aid);
         req.setProductId(pid);
 
@@ -110,11 +88,11 @@ public class ApplicationServiceTest {
     public void createApplication_success_createsApplicationAndHistoryAndTags() {
         UUID aid = UUID.randomUUID();
         UUID pid = UUID.randomUUID();
-        ApplicationDto req = new ApplicationDto();
+        ApplicationRequest req = new ApplicationRequest();
         req.setApplicantId(aid);
         req.setProductId(pid);
         req.setTags(List.of("t1", "t2"));
-        DocumentDto d = new DocumentDto();
+        DocumentRequest d = new DocumentRequest();
         d.setFileName("f.txt");
         d.setContentType("text/plain");
         d.setStoragePath("/tmp/f");
@@ -375,21 +353,6 @@ public class ApplicationServiceTest {
 
         assertTrue(app.getTags().stream().noneMatch(t -> "a".equals(t.getName())));
         verify(applicationRepository, times(1)).save(app);
-    }
-
-    // -----------------------
-    // listByTag tests
-    // -----------------------
-    @Test
-    public void listByTag_invokesRepositoryAndMaps() {
-        Application a = new Application();
-        a.setId(UUID.randomUUID());
-        Page<Application> page = new PageImpl<>(List.of(a));
-        when(applicationRepository.findByTags_Name("sometag", PageRequest.of(0, 10))).thenReturn(page);
-
-        Page<com.example.bankticketsystem.dto.ApplicationDto> res = applicationService.listByTag("sometag", 0, 10);
-        assertEquals(1, res.getTotalElements());
-        assertEquals(a.getId(), res.getContent().get(0).getId());
     }
 
     // -----------------------

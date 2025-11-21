@@ -1,8 +1,6 @@
 package com.example.bankticketsystem.service;
 
-import com.example.bankticketsystem.dto.ApplicationHistoryDto;
-import com.example.bankticketsystem.dto.ApplicationDto;
-import com.example.bankticketsystem.dto.DocumentDto;
+import com.example.bankticketsystem.dto.*;
 import com.example.bankticketsystem.exception.*;
 import com.example.bankticketsystem.model.entity.*;
 import com.example.bankticketsystem.model.enums.ApplicationStatus;
@@ -25,7 +23,6 @@ public class ApplicationService {
     private final ApplicationRepository applicationRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
-    private final DocumentRepository documentRepository;
     private final ApplicationHistoryRepository historyRepository;
     private final TagService tagService;
     private final ApplicationHistoryRepository applicationHistoryRepository;
@@ -33,30 +30,22 @@ public class ApplicationService {
     public ApplicationService(ApplicationRepository applicationRepository,
                               UserRepository userRepository,
                               ProductRepository productRepository,
-                              DocumentRepository documentRepository,
                               ApplicationHistoryRepository historyRepository,
                               TagService tagService,
                               ApplicationHistoryRepository applicationHistoryRepository) {
         this.applicationRepository = applicationRepository;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
-        this.documentRepository = documentRepository;
         this.historyRepository = historyRepository;
         this.tagService = tagService;
         this.applicationHistoryRepository = applicationHistoryRepository;
     }
 
     @Transactional
-    public ApplicationDto createApplication(ApplicationDto req) {
+    public ApplicationDto createApplication(ApplicationRequest req) {
         if (req == null) throw new BadRequestException("Request is required");
-        if (req.getId() != null || req.getCreatedAt() != null) {
-            throw new ForbiddenException("Application ID and time of application creation sets automatically");
-        }
         if ((req.getApplicantId() == null) || (req.getProductId() == null)) {
             throw new BadRequestException("Applicant ID and Product ID must be in request body");
-        }
-        if (req.getStatus() != null) {
-            throw new ForbiddenException("You can't change the status of an application from SUBMITTED at the time of its creation");
         }
 
         User applicant = userRepository.findById(req.getApplicantId())
@@ -73,9 +62,9 @@ public class ApplicationService {
         app.setStatus(ApplicationStatus.SUBMITTED);
         app.setCreatedAt(Instant.now());
 
-        List<DocumentDto> docsReq = req.getDocuments() == null ? List.of() : req.getDocuments();
+        List<DocumentRequest> docsReq = req.getDocuments() == null ? List.of() : req.getDocuments();
         List<Document> docs = new ArrayList<>();
-        for (DocumentDto dreq : docsReq) {
+        for (DocumentRequest dreq : docsReq) {
             Document d = new Document();
             d.setId(UUID.randomUUID());
             d.setFileName(dreq.getFileName());
@@ -103,6 +92,7 @@ public class ApplicationService {
         return toDto(app);
     }
 
+    @Transactional(readOnly = true)
     public Page<ApplicationDto> list(int page, int size) {
         Pageable p = PageRequest.of(page, size);
         Page<Application> applications = applicationRepository.findAll(p);
@@ -185,7 +175,6 @@ public class ApplicationService {
         applicationRepository.save(app);
     }
 
-    @Transactional
     public void removeTags(UUID applicationId, List<String> tagNames, UUID actorId) {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
@@ -201,12 +190,6 @@ public class ApplicationService {
 
         app.getTags().removeIf(tag -> tagNames.contains(tag.getName()));
         applicationRepository.save(app);
-    }
-
-    public Page<ApplicationDto> listByTag(String tagName, int page, int size) {
-        Pageable p = PageRequest.of(page, size);
-        Page<Application> apps = applicationRepository.findByTags_Name(tagName, p);
-        return apps.map(this::toDto);
     }
 
     @Transactional
@@ -263,6 +246,8 @@ public class ApplicationService {
         }
     }
 
+    // вот здесь дискуссионно - если считать, что applicationRepository.delete(app); сразу выполняются полностью, то можно убрать транзакцию,
+    // но если мы считаем, что рекурсивно будут удаляться все связанные с заявкой документы, её история, то как будто стоит реализовать одной транзакцией
     @Transactional
     public void deleteApplication(UUID applicationId, UUID actorId) {
         if (actorId == null) {
@@ -285,6 +270,7 @@ public class ApplicationService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<ApplicationHistoryDto> listHistory(UUID applicationId, UUID actorId) {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");

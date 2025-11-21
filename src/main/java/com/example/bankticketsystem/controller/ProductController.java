@@ -1,6 +1,7 @@
 package com.example.bankticketsystem.controller;
 
 import com.example.bankticketsystem.dto.ProductDto;
+import com.example.bankticketsystem.dto.ProductRequest;
 import com.example.bankticketsystem.service.ProductService;
 import com.example.bankticketsystem.exception.BadRequestException;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,7 +38,7 @@ public class ProductController {
             @ApiResponse(responseCode = "409", description = "Product name already in use")
     })
     @PostMapping
-    public ResponseEntity<ProductDto> create(@Valid @RequestBody ProductDto req, UriComponentsBuilder uriBuilder) {
+    public ResponseEntity<ProductDto> create(@Valid @RequestBody ProductRequest req, UriComponentsBuilder uriBuilder) {
         ProductDto dto = productService.create(req);
         URI location = uriBuilder.path("/api/v1/products/{id}").buildAndExpand(dto.getId()).toUri();
         return ResponseEntity.created(location).body(dto);
@@ -87,7 +88,7 @@ public class ProductController {
     })
     @PutMapping("/{id}")
     public ResponseEntity<ProductDto> updateProduct(@PathVariable("id") UUID id,
-                                                    @Valid @RequestBody ProductDto req,
+                                                    @Valid @RequestBody ProductRequest req,
                                                     @RequestParam("actorId") UUID actorId) {
         ProductDto dto = productService.updateProduct(id, req, actorId);
         return ResponseEntity.ok(dto);

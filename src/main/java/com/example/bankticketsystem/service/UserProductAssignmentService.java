@@ -57,6 +57,7 @@ public class UserProductAssignmentService {
         return repo.save(a);
     }
 
+    @Transactional(readOnly = true)
     public List<UserProductAssignmentDto> list(UUID userId, UUID productId) {
         List<UserProductAssignment> res;
         if (userId != null) res = repo.findByUserId(userId);

@@ -2,6 +2,7 @@ package com.example.bankticketsystem.controller;
 
 import com.example.bankticketsystem.dto.ApplicationDto;
 import com.example.bankticketsystem.dto.ApplicationHistoryDto;
+import com.example.bankticketsystem.dto.ApplicationRequest;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.repository.UserRepository;
 import com.example.bankticketsystem.util.ApplicationPage;
@@ -29,11 +30,9 @@ public class ApplicationController {
 
     private static final int MAX_PAGE_SIZE = 50;
     private final ApplicationService applicationService;
-    private final UserRepository userRepository;
 
-    public ApplicationController(ApplicationService applicationService, UserRepository userRepository) {
+    public ApplicationController(ApplicationService applicationService) {
         this.applicationService = applicationService;
-        this.userRepository = userRepository;
     }
 
     // Create: POST "/api/v1/applications" + ApplicationDto(applicantId,productId,documents(fileName,contentType,storagePath)) (Body)
@@ -46,7 +45,7 @@ public class ApplicationController {
             @ApiResponse(responseCode = "404", description = "Applicant or product with their ID are not found")
     })
     @PostMapping
-    public ResponseEntity<ApplicationDto> create(@Valid @RequestBody ApplicationDto req, UriComponentsBuilder uriBuilder) {
+    public ResponseEntity<ApplicationDto> create(@Valid @RequestBody ApplicationRequest req, UriComponentsBuilder uriBuilder) {
         ApplicationDto dto = applicationService.createApplication(req);
         URI location = uriBuilder.path("/api/v1/applications/{id}").buildAndExpand(dto.getId()).toUri();
         return ResponseEntity.created(location).body(dto);

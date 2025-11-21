@@ -1,6 +1,7 @@
 package com.example.bankticketsystem.service;
 
 import com.example.bankticketsystem.dto.ProductDto;
+import com.example.bankticketsystem.dto.ProductRequest;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.exception.ConflictException;
 import com.example.bankticketsystem.exception.ForbiddenException;
@@ -58,7 +59,7 @@ public class ProductServiceTest {
 
     @Test
     public void create_missingName_throwsBadRequest() {
-        ProductDto req = new ProductDto();
+        ProductRequest req = new ProductRequest();
         req.setDescription("desc");
         assertThrows(BadRequestException.class, () -> productService.create(req));
         verifyNoInteractions(productRepository);
@@ -66,7 +67,7 @@ public class ProductServiceTest {
 
     @Test
     public void create_missingDescription_throwsBadRequest() {
-        ProductDto req = new ProductDto();
+        ProductRequest req = new ProductRequest();
         req.setName("name");
         assertThrows(BadRequestException.class, () -> productService.create(req));
         verifyNoInteractions(productRepository);
@@ -74,7 +75,7 @@ public class ProductServiceTest {
 
     @Test
     public void create_nameAlreadyExists_throwsConflict() {
-        ProductDto req = new ProductDto();
+        ProductRequest req = new ProductRequest();
         req.setName("product");
         req.setDescription("desc");
 
@@ -88,7 +89,7 @@ public class ProductServiceTest {
 
     @Test
     public void create_success_returnsDto() {
-        ProductDto req = new ProductDto();
+        ProductRequest req = new ProductRequest();
         req.setName("product");
         req.setDescription("desc");
 
@@ -182,7 +183,7 @@ public class ProductServiceTest {
         UUID productId = UUID.randomUUID();
         when(userRepository.findById(actorId)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> productService.updateProduct(productId, new ProductDto(), actorId));
+        assertThrows(NotFoundException.class, () -> productService.updateProduct(productId, new ProductRequest(), actorId));
         verify(userRepository, times(1)).findById(actorId);
     }
 
@@ -197,7 +198,7 @@ public class ProductServiceTest {
         when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(productRepository.findById(productId)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> productService.updateProduct(productId, new ProductDto(), actorId));
+        assertThrows(NotFoundException.class, () -> productService.updateProduct(productId, new ProductRequest(), actorId));
         verify(productRepository, times(1)).findById(productId);
     }
 
@@ -218,7 +219,7 @@ public class ProductServiceTest {
         when(assignmentRepository.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
                 .thenReturn(false);
 
-        assertThrows(ForbiddenException.class, () -> productService.updateProduct(productId, new ProductDto(), actorId));
+        assertThrows(ForbiddenException.class, () -> productService.updateProduct(productId, new ProductRequest(), actorId));
     }
 
     @Test
@@ -235,7 +236,7 @@ public class ProductServiceTest {
         existing.setName("old");
         existing.setDescription("oldDesc");
 
-        ProductDto req = new ProductDto();
+        ProductRequest req = new ProductRequest();
         req.setName("newName");
         req.setDescription("newDesc");
 
@@ -270,7 +271,7 @@ public class ProductServiceTest {
         existing.setName("old");
         existing.setDescription("oldDesc");
 
-        ProductDto req = new ProductDto();
+        ProductRequest req = new ProductRequest();
         req.setName("ownerName");
         req.setDescription("ownerDesc");
 

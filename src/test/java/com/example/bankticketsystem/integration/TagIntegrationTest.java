@@ -97,9 +97,7 @@ public class TagIntegrationTest {
         assertEquals(HttpStatus.NO_CONTENT, attachResp.getStatusCode());
 
         // ----- Test: Create tag explicitly -----
-        TagDto dto = new TagDto();
-        dto.setName("manual");
-        ResponseEntity<TagDto> tagResp = rest.postForEntity("/api/v1/tags", dto, TagDto.class);
+        ResponseEntity<TagDto> tagResp = rest.postForEntity("/api/v1/tags", "manual", TagDto.class);
 
         assertEquals(HttpStatus.CREATED, tagResp.getStatusCode());
         assertEquals("manual", Objects.requireNonNull(tagResp.getBody()).getName());

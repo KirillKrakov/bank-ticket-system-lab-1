@@ -1,6 +1,7 @@
 package com.example.bankticketsystem.service;
 
 import com.example.bankticketsystem.dto.UserDto;
+import com.example.bankticketsystem.dto.UserRequest;
 import com.example.bankticketsystem.exception.ConflictException;
 import com.example.bankticketsystem.exception.NotFoundException;
 import com.example.bankticketsystem.model.entity.User;
@@ -44,7 +45,7 @@ class UserServiceTest {
     // -----------------------
     @Test
     void createUserSuccessCreatesUser() {
-        UserDto req = new UserDto();
+        UserRequest req = new UserRequest();
         req.setUsername("alice");
         req.setEmail("alice@example.com");
         req.setPassword("StrongPass123");
@@ -87,7 +88,7 @@ class UserServiceTest {
 
     @Test
     void createUserDuplicateEmailThrowsConflict() {
-        UserDto req = new UserDto();
+        UserRequest req = new UserRequest();
         req.setUsername("bob");
         req.setEmail("bob@example.com");
         req.setPassword("pass12345");
@@ -106,7 +107,7 @@ class UserServiceTest {
 
     @Test
     void createUserDuplicateUsernameThrowsConflict() {
-        UserDto req = new UserDto();
+        UserRequest req = new UserRequest();
         req.setUsername("charlie");
         req.setEmail("charlie@example.com");
         req.setPassword("pass12345");
@@ -144,7 +145,7 @@ class UserServiceTest {
         when(userRepository.findById(id)).thenReturn(Optional.of(existing));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserDto req = new UserDto();
+        UserRequest req = new UserRequest();
         req.setUsername("newname");
         req.setEmail("new@example.com");
         req.setPassword("newStrongPass123");
@@ -192,7 +193,7 @@ class UserServiceTest {
         when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        UserDto req = new UserDto();
+        UserRequest req = new UserRequest();
         req.setUsername("x");
         req.setEmail("x@example.com");
         req.setPassword("password123");
