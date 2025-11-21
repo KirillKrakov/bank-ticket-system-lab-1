@@ -18,9 +18,6 @@ public class ApplicationRequest {
     public UUID getProductId() { return productId; }
     public void setProductId(UUID productId) { this.productId = productId; }
 
-    public String getComment() { return comment; }
-    public void setComment(String comment) { this.comment = comment; }
-
     public List<DocumentRequest> getDocuments() { return documents; }
     public void setDocuments(List<DocumentRequest> documents) { this.documents = documents; }
 
