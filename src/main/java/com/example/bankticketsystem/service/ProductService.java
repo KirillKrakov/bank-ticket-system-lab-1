@@ -35,7 +35,6 @@ public class ProductService {
         this.applicationRepository = applicationRepository;
     }
 
-    @Transactional
     public ProductDto create(ProductDto req) {
         if (req == null) throw new BadRequestException("Request is required");
         if (req.getId() != null) {
@@ -62,6 +61,7 @@ public class ProductService {
         return toDto(p);
     }
 
+    @Transactional(readOnly = true)
     public Page<ProductDto> list(int page, int size) {
         Pageable p = PageRequest.of(page, size);
         Page<Product> products = productRepository.findAll(p);
@@ -80,7 +80,6 @@ public class ProductService {
         return d;
     }
 
-    @Transactional
     public ProductDto updateProduct(UUID productId, ProductDto req, UUID actorId) {
         if (req == null) throw new BadRequestException("Request is required");
         if (req.getId() != null) {

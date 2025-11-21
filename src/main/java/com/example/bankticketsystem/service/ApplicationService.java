@@ -103,6 +103,7 @@ public class ApplicationService {
         return toDto(app);
     }
 
+    @Transactional(readOnly = true)
     public Page<ApplicationDto> list(int page, int size) {
         Pageable p = PageRequest.of(page, size);
         Page<Application> applications = applicationRepository.findAll(p);
@@ -185,7 +186,6 @@ public class ApplicationService {
         applicationRepository.save(app);
     }
 
-    @Transactional
     public void removeTags(UUID applicationId, List<String> tagNames, UUID actorId) {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
@@ -201,12 +201,6 @@ public class ApplicationService {
 
         app.getTags().removeIf(tag -> tagNames.contains(tag.getName()));
         applicationRepository.save(app);
-    }
-
-    public Page<ApplicationDto> listByTag(String tagName, int page, int size) {
-        Pageable p = PageRequest.of(page, size);
-        Page<Application> apps = applicationRepository.findByTags_Name(tagName, p);
-        return apps.map(this::toDto);
     }
 
     @Transactional
@@ -263,6 +257,8 @@ public class ApplicationService {
         }
     }
 
+    // вот здесь дискуссионно - если считать, что applicationRepository.delete(app); сразу выполняются полностью, то можно убрать транзакцию,
+    // но если мы считаем, что рекурсивно будут удаляться все связанные с заявкой документы, её история, то как будто стоит реализовать одной транзакцией
     @Transactional
     public void deleteApplication(UUID applicationId, UUID actorId) {
         if (actorId == null) {
@@ -285,6 +281,7 @@ public class ApplicationService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<ApplicationHistoryDto> listHistory(UUID applicationId, UUID actorId) {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");

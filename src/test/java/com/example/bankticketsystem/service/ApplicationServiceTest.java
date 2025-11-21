@@ -378,21 +378,6 @@ public class ApplicationServiceTest {
     }
 
     // -----------------------
-    // listByTag tests
-    // -----------------------
-    @Test
-    public void listByTag_invokesRepositoryAndMaps() {
-        Application a = new Application();
-        a.setId(UUID.randomUUID());
-        Page<Application> page = new PageImpl<>(List.of(a));
-        when(applicationRepository.findByTags_Name("sometag", PageRequest.of(0, 10))).thenReturn(page);
-
-        Page<com.example.bankticketsystem.dto.ApplicationDto> res = applicationService.listByTag("sometag", 0, 10);
-        assertEquals(1, res.getTotalElements());
-        assertEquals(a.getId(), res.getContent().get(0).getId());
-    }
-
-    // -----------------------
     // changeStatus tests
     // -----------------------
     @Test

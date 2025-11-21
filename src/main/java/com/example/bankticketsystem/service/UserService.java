@@ -28,7 +28,6 @@ public class UserService {
         this.applicationRepository = applicationRepository;
     }
 
-    @Transactional
     public UserDto create(UserDto req) {
         if (req == null) throw new BadRequestException("Request is required");
         if (req.getId() != null || req.getCreatedAt() != null || req.getRole() != null) {
@@ -60,6 +59,7 @@ public class UserService {
         return toDto(u);
     }
 
+    @Transactional(readOnly = true)
     public Page<UserDto> list(int page, int size) {
         Pageable p = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<User> users = userRepository.findAll(p);
@@ -81,7 +81,6 @@ public class UserService {
         return dto;
     }
 
-    @Transactional
     public UserDto updateUser(UUID userId, UUID actorId, UserDto req) {
         if (req == null) throw new BadRequestException("Request is required");
         if (req.getId() != null || req.getCreatedAt() != null) {
@@ -131,7 +130,6 @@ public class UserService {
         }
     }
 
-    @Transactional
     public void promoteToManager(UUID id, UUID actorId) {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
@@ -149,7 +147,6 @@ public class UserService {
         userRepository.save(u);
     }
 
-    @Transactional
     public void demoteToUser(UUID id, UUID actorId) {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");

@@ -27,7 +27,6 @@ public class TagService {
         this.repo = repo;
     }
 
-    @Transactional
     public Tag createIfNotExists(String name) {
         return repo.findByName(name)
                 .orElseGet(() -> {
