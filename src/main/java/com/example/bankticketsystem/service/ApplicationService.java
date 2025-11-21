@@ -8,6 +8,7 @@ import com.example.bankticketsystem.model.entity.*;
 import com.example.bankticketsystem.model.enums.ApplicationStatus;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.*;
+import com.example.bankticketsystem.util.ApplicationPage;
 import com.example.bankticketsystem.util.CursorUtil;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -134,13 +135,33 @@ public class ApplicationService {
         return dto;
     }
 
-    public List<ApplicationDto> stream(String cursor, int limit) {
-        CursorUtil.Decoded dec = CursorUtil.decode(cursor);
+    @Transactional(readOnly = true)
+    public ApplicationPage streamWithNextCursor(String cursor, int limit) {
+        if (limit <= 0) throw new BadRequestException("limit must be greater than 0");
+        int capped = Math.min(limit, 50);
+
+        CursorUtil.Decoded dec = CursorUtil.decodeOrThrow(cursor);
         Instant ts = dec == null ? null : dec.timestamp;
         UUID id = dec == null ? null : dec.id;
-        int capped = Math.min(limit, 50);
-        List<Application> apps = applicationRepository.findByKeyset(ts, id, capped);
-        return apps.stream().map(this::toDto).collect(Collectors.toList());
+
+        List<Application> apps;
+        if (ts == null) {
+            // первая страница
+            apps = applicationRepository.findFirstPage(capped);
+        } else {
+            // последующие страницы
+            apps = applicationRepository.findByKeyset(ts, id, capped);
+        }
+
+        List<ApplicationDto> dtos = apps.stream().map(this::toDto).collect(Collectors.toList());
+
+        String nextCursor = null;
+        if (!apps.isEmpty()) {
+            Application last = apps.get(apps.size() - 1);
+            nextCursor = CursorUtil.encode(last.getCreatedAt(), last.getId());
+        }
+
+        return new ApplicationPage(dtos, nextCursor);
     }
 
     @Transactional

@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.UUID;
 import java.util.List;
 
@@ -17,4 +18,18 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID>,
     long countByProductId(UUID productId);
     List<Application> findByProductId(UUID productId);
     List<Application> findByApplicantId(UUID applicantId);
+    // Первый запрос — первая страница, без WHERE по курсору
+    @Query(value = "SELECT * FROM application " +
+            "ORDER BY created_at DESC, id DESC " +
+            "LIMIT :limit", nativeQuery = true)
+    List<Application> findFirstPage(@Param("limit") int limit);
+
+    // Второй запрос — keyset для последующих страниц
+    @Query(value = "SELECT * FROM application " +
+            "WHERE (created_at, id) < (:ts, :id) " +
+            "ORDER BY created_at DESC, id DESC " +
+            "LIMIT :limit", nativeQuery = true)
+    List<Application> findByKeyset(@Param("ts") Instant ts,
+                                   @Param("id") UUID id,
+                                   @Param("limit") int limit);
 }

@@ -39,7 +39,7 @@ public class UserController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "User created successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid request body"),
-            @ApiResponse(responseCode = "403", description = "Forbidden input data: user ID and creation time"),
+            @ApiResponse(responseCode = "403", description = "Forbidden input data: user ID, user role and creation time"),
             @ApiResponse(responseCode = "409", description = "Username or email already in use")
     })
     @PostMapping
