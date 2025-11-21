@@ -24,20 +24,18 @@ import static org.mockito.Mockito.*;
 public class ApplicationServiceTest {
 
     @Mock private ApplicationRepository applicationRepository;
-    @Mock private UserRepository userRepository;
-    @Mock private ProductRepository productRepository;
-    @Mock private DocumentRepository documentRepository;
+    @Mock private UserService userService;
+    @Mock private ProductService productService;
     @Mock private ApplicationHistoryRepository historyRepository;
     @Mock private TagService tagService;
     @Mock private ApplicationHistoryRepository applicationHistoryRepository;
-
     @InjectMocks private ApplicationService applicationService;
 
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        applicationService = new ApplicationService(applicationRepository, userRepository, userService, productRepository,
-                historyRepository, tagService, applicationHistoryRepository);
+        applicationService = new ApplicationService(applicationRepository, userService, productService, historyRepository,
+        tagService, applicationHistoryRepository);
     }
 
     // -----------------------
@@ -64,7 +62,7 @@ public class ApplicationServiceTest {
         req.setApplicantId(aid);
         req.setProductId(pid);
 
-        when(userRepository.findById(aid)).thenReturn(Optional.empty());
+        when(userService.findById(aid)).thenReturn(Optional.empty());
         assertThrows(NotFoundException.class, () -> applicationService.createApplication(req));
     }
 
@@ -78,8 +76,8 @@ public class ApplicationServiceTest {
 
         User user = new User();
         user.setId(aid);
-        when(userRepository.findById(aid)).thenReturn(Optional.of(user));
-        when(productRepository.findById(pid)).thenReturn(Optional.empty());
+        when(userService.findById(aid)).thenReturn(Optional.of(user));
+        when(productService.findById(pid)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> applicationService.createApplication(req));
     }
@@ -103,8 +101,8 @@ public class ApplicationServiceTest {
         Product product = new Product();
         product.setId(pid);
 
-        when(userRepository.findById(aid)).thenReturn(Optional.of(user));
-        when(productRepository.findById(pid)).thenReturn(Optional.of(product));
+        when(userService.findById(aid)).thenReturn(Optional.of(user));
+        when(productService.findById(pid)).thenReturn(Optional.of(product));
 
         doAnswer(invocation -> {
             Application saved = invocation.getArgument(0);
@@ -230,7 +228,7 @@ public class ApplicationServiceTest {
     @Test
     public void attachTags_actorNotFound_throwsNotFound() {
         UUID actorId = UUID.randomUUID();
-        when(userRepository.findById(actorId)).thenReturn(Optional.empty());
+        when(userService.findById(actorId)).thenReturn(Optional.empty());
         assertThrows(NotFoundException.class, () -> applicationService.attachTags(UUID.randomUUID(), List.of("t"), actorId));
     }
 
@@ -240,7 +238,7 @@ public class ApplicationServiceTest {
         UUID appId = UUID.randomUUID();
         User user = new User();
         user.setId(actorId);
-        when(userRepository.findById(actorId)).thenReturn(Optional.of(user));
+        when(userService.findById(actorId)).thenReturn(Optional.of(user));
         when(applicationRepository.findById(appId)).thenReturn(Optional.empty());
         assertThrows(NotFoundException.class, () -> applicationService.attachTags(appId, List.of("t"), actorId));
     }
@@ -664,7 +662,7 @@ public class ApplicationServiceTest {
         h2.setChangedBy(UserRole.ROLE_ADMIN);
         h2.setChangedAt(Instant.now());
 
-        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
         when(applicationHistoryRepository.findByApplicationIdOrderByChangedAtDesc(appId)).thenReturn(List.of(h2, h1));
 
