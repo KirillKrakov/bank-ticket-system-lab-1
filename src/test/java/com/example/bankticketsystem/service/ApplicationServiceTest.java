@@ -39,7 +39,7 @@ public class ApplicationServiceTest {
     public void setUp() {
         MockitoAnnotations.openMocks(this);
         applicationService = new ApplicationService(applicationRepository, userRepository, productRepository,
-                documentRepository, historyRepository, tagService, applicationHistoryRepository);
+                historyRepository, tagService, applicationHistoryRepository);
     }
 
     // -----------------------

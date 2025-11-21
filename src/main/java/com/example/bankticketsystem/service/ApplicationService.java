@@ -1,8 +1,6 @@
 package com.example.bankticketsystem.service;
 
-import com.example.bankticketsystem.dto.ApplicationHistoryDto;
-import com.example.bankticketsystem.dto.ApplicationDto;
-import com.example.bankticketsystem.dto.DocumentDto;
+import com.example.bankticketsystem.dto.*;
 import com.example.bankticketsystem.exception.*;
 import com.example.bankticketsystem.model.entity.*;
 import com.example.bankticketsystem.model.enums.ApplicationStatus;
@@ -25,7 +23,6 @@ public class ApplicationService {
     private final ApplicationRepository applicationRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
-    private final DocumentRepository documentRepository;
     private final ApplicationHistoryRepository historyRepository;
     private final TagService tagService;
     private final ApplicationHistoryRepository applicationHistoryRepository;
@@ -33,30 +30,22 @@ public class ApplicationService {
     public ApplicationService(ApplicationRepository applicationRepository,
                               UserRepository userRepository,
                               ProductRepository productRepository,
-                              DocumentRepository documentRepository,
                               ApplicationHistoryRepository historyRepository,
                               TagService tagService,
                               ApplicationHistoryRepository applicationHistoryRepository) {
         this.applicationRepository = applicationRepository;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
-        this.documentRepository = documentRepository;
         this.historyRepository = historyRepository;
         this.tagService = tagService;
         this.applicationHistoryRepository = applicationHistoryRepository;
     }
 
     @Transactional
-    public ApplicationDto createApplication(ApplicationDto req) {
+    public ApplicationDto createApplication(ApplicationRequest req) {
         if (req == null) throw new BadRequestException("Request is required");
-        if (req.getId() != null || req.getCreatedAt() != null) {
-            throw new ForbiddenException("Application ID and time of application creation sets automatically");
-        }
         if ((req.getApplicantId() == null) || (req.getProductId() == null)) {
             throw new BadRequestException("Applicant ID and Product ID must be in request body");
-        }
-        if (req.getStatus() != null) {
-            throw new ForbiddenException("You can't change the status of an application from SUBMITTED at the time of its creation");
         }
 
         User applicant = userRepository.findById(req.getApplicantId())
@@ -73,9 +62,9 @@ public class ApplicationService {
         app.setStatus(ApplicationStatus.SUBMITTED);
         app.setCreatedAt(Instant.now());
 
-        List<DocumentDto> docsReq = req.getDocuments() == null ? List.of() : req.getDocuments();
+        List<DocumentRequest> docsReq = req.getDocuments() == null ? List.of() : req.getDocuments();
         List<Document> docs = new ArrayList<>();
-        for (DocumentDto dreq : docsReq) {
+        for (DocumentRequest dreq : docsReq) {
             Document d = new Document();
             d.setId(UUID.randomUUID());
             d.setFileName(dreq.getFileName());

@@ -1,6 +1,7 @@
 package com.example.bankticketsystem.controller;
 
 import com.example.bankticketsystem.dto.UserDto;
+import com.example.bankticketsystem.dto.UserRequest;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.repository.UserRepository;
 import com.example.bankticketsystem.service.UserService;
@@ -43,7 +44,7 @@ public class UserController {
             @ApiResponse(responseCode = "409", description = "Username or email already in use")
     })
     @PostMapping
-    public ResponseEntity<UserDto> register(@Valid @RequestBody UserDto req, UriComponentsBuilder uriBuilder) {
+    public ResponseEntity<UserDto> register(@Valid @RequestBody UserRequest req, UriComponentsBuilder uriBuilder) {
         UserDto dto = userService.create(req);
         URI location = uriBuilder.path("/api/v1/users/{id}").buildAndExpand(dto.getId()).toUri();
         return ResponseEntity.created(location).body(dto);
@@ -93,7 +94,7 @@ public class UserController {
     @PutMapping("/{id}")
     public ResponseEntity<UserDto> updateUser(@PathVariable("id") UUID id,
                                               @RequestParam("actorId") UUID actorId,
-                                              @Valid @RequestBody UserDto req) {
+                                              @Valid @RequestBody UserRequest req) {
         UserDto updated = userService.updateUser(id, actorId, req);
         return ResponseEntity.ok(updated);
     }

@@ -1,6 +1,7 @@
 package com.example.bankticketsystem.service;
 
 import com.example.bankticketsystem.dto.ProductDto;
+import com.example.bankticketsystem.dto.ProductRequest;
 import com.example.bankticketsystem.exception.*;
 import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.Product;
@@ -35,11 +36,8 @@ public class ProductService {
         this.applicationRepository = applicationRepository;
     }
 
-    public ProductDto create(ProductDto req) {
+    public ProductDto create(ProductRequest req) {
         if (req == null) throw new BadRequestException("Request is required");
-        if (req.getId() != null) {
-            throw new ForbiddenException("Product ID sets automatically");
-        }
 
         String name = req.getName();
         String description = req.getDescription();
@@ -80,11 +78,8 @@ public class ProductService {
         return d;
     }
 
-    public ProductDto updateProduct(UUID productId, ProductDto req, UUID actorId) {
+    public ProductDto updateProduct(UUID productId, ProductRequest req, UUID actorId) {
         if (req == null) throw new BadRequestException("Request is required");
-        if (req.getId() != null) {
-            throw new ForbiddenException("Product ID has been already set automatically");
-        }
 
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");

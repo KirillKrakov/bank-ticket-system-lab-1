@@ -1,6 +1,7 @@
 package com.example.bankticketsystem.service;
 
 import com.example.bankticketsystem.dto.UserDto;
+import com.example.bankticketsystem.dto.UserRequest;
 import com.example.bankticketsystem.exception.*;
 import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.User;
@@ -28,11 +29,8 @@ public class UserService {
         this.applicationRepository = applicationRepository;
     }
 
-    public UserDto create(UserDto req) {
+    public UserDto create(UserRequest req) {
         if (req == null) throw new BadRequestException("Request is required");
-        if (req.getId() != null || req.getCreatedAt() != null || req.getRole() != null) {
-            throw new ForbiddenException("User ID, user role and time of user creation sets automatically");
-        }
         if ((req.getUsername() == null) || (req.getEmail() == null) || (req.getPassword() == null)) {
             throw new BadRequestException("Username, email and password must be in request body");
         }
@@ -81,11 +79,8 @@ public class UserService {
         return dto;
     }
 
-    public UserDto updateUser(UUID userId, UUID actorId, UserDto req) {
+    public UserDto updateUser(UUID userId, UUID actorId, UserRequest req) {
         if (req == null) throw new BadRequestException("Request is required");
-        if (req.getId() != null || req.getCreatedAt() != null) {
-            throw new ForbiddenException("Product ID and time of product creation has been already set automatically");
-        }
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
         }

@@ -1,6 +1,7 @@
 package com.example.bankticketsystem.controller;
 
 import com.example.bankticketsystem.dto.UserProductAssignmentDto;
+import com.example.bankticketsystem.dto.UserProductAssignmentRequest;
 import com.example.bankticketsystem.service.UserProductAssignmentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -33,7 +34,7 @@ public class UserProductAssignmentController {
             @ApiResponse(responseCode = "404", description = "User, product or actor with their ID are not found")
     })
     @PostMapping
-    public ResponseEntity<UserProductAssignmentDto> assign(@Valid @RequestBody UserProductAssignmentDto req,
+    public ResponseEntity<UserProductAssignmentDto> assign(@Valid @RequestBody UserProductAssignmentRequest req,
                                                            @RequestParam("actorId") UUID actorId,
                                                            UriComponentsBuilder uriBuilder) {
         var a = svc.assign(actorId, req.getUserId(), req.getProductId(), req.getRole());

@@ -38,8 +38,8 @@ public class TagController {
             @ApiResponse(responseCode = "201", description = "Tag created or found successfully")
     })
     @PostMapping
-    public ResponseEntity<TagDto> create(@Valid @RequestBody TagDto dto, UriComponentsBuilder uriBuilder) {
-        var created = tagService.createIfNotExists(dto.getName());
+    public ResponseEntity<TagDto> create(@Valid @RequestBody String name, UriComponentsBuilder uriBuilder) {
+        var created = tagService.createIfNotExists(name);
         TagDto out = new TagDto();
         out.setId(created.getId());
         out.setName(created.getName());
