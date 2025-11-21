@@ -4,6 +4,8 @@ import com.example.bankticketsystem.dto.UserDto;
 import com.example.bankticketsystem.dto.UserRequest;
 import com.example.bankticketsystem.exception.ConflictException;
 import com.example.bankticketsystem.exception.NotFoundException;
+import com.example.bankticketsystem.exception.UnauthorizedException;
+import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.ApplicationRepository;
@@ -29,6 +31,8 @@ class UserServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    // applicationRepository is not used directly by UserService anymore for deleteUser (ApplicationService static is used),
+    // but left as a mock in case other tests rely on it or for future extensions.
     @Mock
     private ApplicationRepository applicationRepository;
 
@@ -38,6 +42,7 @@ class UserServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        // InjectMocks will construct UserService and initialize STATIC_USER_REPOSITORY in ctor
     }
 
     // -----------------------
@@ -225,11 +230,22 @@ class UserServiceTest {
         when(userRepository.findById(id)).thenReturn(Optional.of(existing));
         doNothing().when(userRepository).delete(existing);
 
-        userService.deleteUser(id, actorId);
+        // mock static ApplicationService calls used inside deleteUser
+        try (MockedStatic<ApplicationService> appStatic = Mockito.mockStatic(ApplicationService.class)) {
+            // no applications for this user
+            appStatic.when(() -> ApplicationService.findByApplicantId(id)).thenReturn(List.of());
+            // execute
+            userService.deleteUser(id, actorId);
 
-        verify(userRepository, times(1)).findById(actorId);
-        verify(userRepository, times(1)).findById(id);
-        verify(userRepository, times(1)).delete(existing);
+            // verify interactions
+            verify(userRepository, times(1)).findById(actorId);
+            verify(userRepository, times(1)).findById(id);
+            verify(userRepository, times(1)).delete(existing);
+
+            appStatic.verify(() -> ApplicationService.findByApplicantId(id), times(1));
+            // no ApplicationService.delete(...) calls because findByApplicantId returned empty
+            appStatic.verify(() -> ApplicationService.delete(any(Application.class)), times(0));
+        }
     }
 
     @Test
@@ -243,8 +259,8 @@ class UserServiceTest {
 
         when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.empty());
-        when(applicationRepository.findByApplicantId(id)).thenReturn(List.of());
 
+        // no need to mock ApplicationService here — exception is thrown before applications are queried
         assertThrows(NotFoundException.class, () -> userService.deleteUser(id, actorId));
         verify(userRepository, times(1)).findById(actorId);
         verify(userRepository, times(1)).findById(id);

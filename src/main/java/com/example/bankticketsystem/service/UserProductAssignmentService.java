@@ -19,20 +19,19 @@ import java.util.stream.Collectors;
 public class UserProductAssignmentService {
 
     private final UserProductAssignmentRepository repo;
-    private final UserRepository userRepo;
-    private final ProductRepository productRepo;
+    // Статическое поле-холдер
+    private static volatile UserProductAssignmentRepository STATIC_ASSIGNMENT_REPOSITORY;
 
-    public UserProductAssignmentService(UserProductAssignmentRepository repo,
-                                        UserRepository userRepo,
-                                        ProductRepository productRepo) {
-        this.repo = repo; this.userRepo = userRepo; this.productRepo = productRepo;
+    public UserProductAssignmentService(UserProductAssignmentRepository repo) {
+        this.repo = repo;
+        UserProductAssignmentService.STATIC_ASSIGNMENT_REPOSITORY = repo;
     }
 
     public UserProductAssignment assign(UUID actorId, UUID userId, UUID productId, AssignmentRole role) {
-        User u = userRepo.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
-        Product p = productRepo.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
+        User u = UserService.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        Product p = ProductService.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
 
-        var actor = userRepo.findById(actorId).orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
+        var actor = UserService.findById(actorId).orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
         boolean isAdmin = actor.getRole() == UserRole.ROLE_ADMIN;
         boolean isOwner = repo.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
 
@@ -71,7 +70,7 @@ public class UserProductAssignmentService {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
         }
-        var actor = userRepo.findById(actorId)
+        var actor = UserService.findById(actorId)
                 .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
         if (actor.getRole() != UserRole.ROLE_ADMIN) {
@@ -79,14 +78,14 @@ public class UserProductAssignmentService {
         }
 
         if (userId != null && productId != null) {
-            User u = userRepo.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
-            Product p = productRepo.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
+            User u = UserService.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+            Product p = ProductService.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
             repo.deleteByUserIdAndProductId(userId, productId);
         } else if (userId != null) {
-            User u = userRepo.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+            User u = UserService.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
             repo.deleteByUserId(userId);
         } else if (productId != null) {
-            Product p = productRepo.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
+            Product p = ProductService.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
             repo.deleteByProductId(productId);
         } else {
             repo.deleteAll();
@@ -101,5 +100,13 @@ public class UserProductAssignmentService {
         dto.setRole(a.getRoleOnProduct());
         dto.setAssignedAt(a.getAssignedAt());
         return dto;
+    }
+
+    public static boolean existsByUserIdAndProductIdAndRoleOnProduct(UUID actorId, UUID productId, AssignmentRole assignmentRole ) {
+        return UserProductAssignmentService.STATIC_ASSIGNMENT_REPOSITORY.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, assignmentRole);
+    }
+
+    public static void deleteByProductId(UUID productId) {
+        UserProductAssignmentService.STATIC_ASSIGNMENT_REPOSITORY.deleteByProductId(productId);
     }
 }

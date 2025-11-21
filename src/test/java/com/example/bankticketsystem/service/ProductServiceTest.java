@@ -32,8 +32,12 @@ public class ProductServiceTest {
 
     @Mock
     private ProductRepository productRepository;
+    // NOTE: UserRepository is no longer directly used by ProductService (UserService static is used),
+    // but we keep the mock for any other needs / consistency in tests.
     @Mock
     private UserRepository userRepository;
+    // UserProductAssignmentRepository is not used directly either (static UserProductAssignmentService is used),
+    // but we keep it for backward compatibility in tests that might rely on it.
     @Mock
     private UserProductAssignmentRepository assignmentRepository;
     @Mock
@@ -45,7 +49,7 @@ public class ProductServiceTest {
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        productService = new ProductService(productRepository, userRepository, assignmentRepository, applicationRepository);
+        productService = new ProductService(productRepository);
     }
 
     // -----------------------
@@ -181,25 +185,30 @@ public class ProductServiceTest {
     public void updateProduct_actorNotFound_throwsBadRequest() {
         UUID actorId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
-        when(userRepository.findById(actorId)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> productService.updateProduct(productId, new ProductRequest(), actorId));
-        verify(userRepository, times(1)).findById(actorId);
+        try (MockedStatic<UserService> userStatic = Mockito.mockStatic(UserService.class)) {
+            userStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.empty());
+            assertThrows(NotFoundException.class, () -> productService.updateProduct(productId, new ProductRequest(), actorId));
+            userStatic.verify(() -> UserService.findById(actorId), times(1));
+        }
     }
 
     @Test
     public void updateProduct_productNotFound_throwsBadRequest() {
         UUID actorId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
+
         User actor = new User();
         actor.setId(actorId);
         actor.setRole(UserRole.ROLE_ADMIN);
 
-        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
-        when(productRepository.findById(productId)).thenReturn(Optional.empty());
+        try (MockedStatic<UserService> userStatic = Mockito.mockStatic(UserService.class)) {
+            userStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+            when(productRepository.findById(productId)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> productService.updateProduct(productId, new ProductRequest(), actorId));
-        verify(productRepository, times(1)).findById(productId);
+            assertThrows(NotFoundException.class, () -> productService.updateProduct(productId, new ProductRequest(), actorId));
+            verify(productRepository, times(1)).findById(productId);
+        }
     }
 
     @Test
@@ -214,12 +223,17 @@ public class ProductServiceTest {
         Product product = new Product();
         product.setId(productId);
 
-        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
-        when(assignmentRepository.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
-                .thenReturn(false);
+        try (MockedStatic<UserService> userStatic = Mockito.mockStatic(UserService.class);
+             MockedStatic<UserProductAssignmentService> assignStatic = Mockito.mockStatic(UserProductAssignmentService.class)) {
 
-        assertThrows(ForbiddenException.class, () -> productService.updateProduct(productId, new ProductRequest(), actorId));
+            userStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            assignStatic.when(() -> UserProductAssignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
+                    .thenReturn(false);
+
+            assertThrows(ForbiddenException.class, () -> productService.updateProduct(productId, new ProductRequest(), actorId));
+            assignStatic.verify(() -> UserProductAssignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER), times(1));
+        }
     }
 
     @Test
@@ -245,16 +259,31 @@ public class ProductServiceTest {
         saved.setName("newName");
         saved.setDescription("newDesc");
 
-        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
-        when(productRepository.save(any(Product.class))).thenReturn(saved);
+        try (MockedStatic<UserService> userStatic = Mockito.mockStatic(UserService.class);
+             MockedStatic<UserProductAssignmentService> assignStatic = Mockito.mockStatic(UserProductAssignmentService.class)) {
 
-        ProductDto resp = productService.updateProduct(productId, req, actorId);
+            userStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+            when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
 
-        assertNotNull(resp);
-        assertEquals("newName", resp.getName());
-        assertEquals("newDesc", resp.getDescription());
-        verify(productRepository, times(1)).save(any(Product.class));
+            // <-- important: mock the static ownership check to avoid NPE on the static holder
+            assignStatic.when(() -> UserProductAssignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
+                    .thenReturn(false);
+
+            when(productRepository.save(any(Product.class))).thenReturn(saved);
+
+            ProductDto resp = productService.updateProduct(productId, req, actorId);
+
+            assertNotNull(resp);
+            assertEquals("newName", resp.getName());
+            assertEquals("newDesc", resp.getDescription());
+            verify(productRepository, times(1)).save(any(Product.class));
+
+            // verify the static check was invoked once
+            assignStatic.verify(() ->
+                            UserProductAssignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER),
+                    times(1)
+            );
+        }
     }
 
     @Test
@@ -280,17 +309,22 @@ public class ProductServiceTest {
         saved.setName("ownerName");
         saved.setDescription("ownerDesc");
 
-        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
-        when(assignmentRepository.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
-                .thenReturn(true);
-        when(productRepository.save(any(Product.class))).thenReturn(saved);
+        try (MockedStatic<UserService> userStatic = Mockito.mockStatic(UserService.class);
+             MockedStatic<UserProductAssignmentService> assignStatic = Mockito.mockStatic(UserProductAssignmentService.class)) {
 
-        ProductDto resp = productService.updateProduct(productId, req, actorId);
+            userStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+            when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+            assignStatic.when(() -> UserProductAssignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
+                    .thenReturn(true);
+            when(productRepository.save(any(Product.class))).thenReturn(saved);
 
-        assertNotNull(resp);
-        assertEquals("ownerName", resp.getName());
-        verify(productRepository, times(1)).save(any(Product.class));
+            ProductDto resp = productService.updateProduct(productId, req, actorId);
+
+            assertNotNull(resp);
+            assertEquals("ownerName", resp.getName());
+            verify(productRepository, times(1)).save(any(Product.class));
+            assignStatic.verify(() -> UserProductAssignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER), times(1));
+        }
     }
 
     // -----------------------
@@ -300,10 +334,12 @@ public class ProductServiceTest {
     public void deleteProduct_actorNotFound_throwsBadRequest() {
         UUID actorId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
-        when(userRepository.findById(actorId)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> productService.deleteProduct(productId, actorId));
-        verify(userRepository, times(1)).findById(actorId);
+        try (MockedStatic<UserService> userStatic = Mockito.mockStatic(UserService.class)) {
+            userStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.empty());
+            assertThrows(NotFoundException.class, () -> productService.deleteProduct(productId, actorId));
+            userStatic.verify(() -> UserService.findById(actorId), times(1));
+        }
     }
 
     @Test
@@ -315,11 +351,13 @@ public class ProductServiceTest {
         actor.setId(actorId);
         actor.setRole(UserRole.ROLE_ADMIN);
 
-        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
-        when(productRepository.findById(productId)).thenReturn(Optional.empty());
+        try (MockedStatic<UserService> userStatic = Mockito.mockStatic(UserService.class)) {
+            userStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+            when(productRepository.findById(productId)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> productService.deleteProduct(productId, actorId));
-        verify(productRepository, times(1)).findById(productId);
+            assertThrows(NotFoundException.class, () -> productService.deleteProduct(productId, actorId));
+            verify(productRepository, times(1)).findById(productId);
+        }
     }
 
     @Test
@@ -334,12 +372,17 @@ public class ProductServiceTest {
         Product product = new Product();
         product.setId(productId);
 
-        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
-        when(assignmentRepository.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
-                .thenReturn(false);
+        try (MockedStatic<UserService> userStatic = Mockito.mockStatic(UserService.class);
+             MockedStatic<UserProductAssignmentService> assignStatic = Mockito.mockStatic(UserProductAssignmentService.class)) {
 
-        assertThrows(ForbiddenException.class, () -> productService.deleteProduct(productId, actorId));
+            userStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            assignStatic.when(() -> UserProductAssignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
+                    .thenReturn(false);
+
+            assertThrows(ForbiddenException.class, () -> productService.deleteProduct(productId, actorId));
+            assignStatic.verify(() -> UserProductAssignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER), times(1));
+        }
     }
 
     @Test
@@ -364,21 +407,37 @@ public class ProductServiceTest {
 
         List<Application> apps = Arrays.asList(app1, app2);
 
-        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
-        when(assignmentRepository.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
-                .thenReturn(false); // admin is enough
-        when(applicationRepository.findByProductId(productId)).thenReturn(apps);
+        try (MockedStatic<UserService> userStatic = Mockito.mockStatic(UserService.class);
+             MockedStatic<UserProductAssignmentService> assignStatic = Mockito.mockStatic(UserProductAssignmentService.class);
+             MockedStatic<ApplicationService> appStatic = Mockito.mockStatic(ApplicationService.class)) {
 
-        doNothing().when(applicationRepository).delete(any(Application.class));
-        doNothing().when(assignmentRepository).deleteByProductId(productId);
-        doNothing().when(productRepository).delete(product);
+            userStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
 
-        productService.deleteProduct(productId, actorId);
+            // owner-check returns false (admin is enough)
+            assignStatic.when(() -> UserProductAssignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
+                    .thenReturn(false);
 
-        verify(applicationRepository, times(apps.size())).delete(any(Application.class));
-        verify(assignmentRepository, times(1)).deleteByProductId(productId);
-        verify(productRepository, times(1)).delete(product);
+            // ApplicationService.findByProductId returns apps
+            appStatic.when(() -> ApplicationService.findByProductId(productId)).thenReturn(apps);
+            // ApplicationService.delete - do nothing
+            appStatic.when(() -> ApplicationService.delete(any(Application.class))).thenAnswer(inv -> null);
+            // UserProductAssignmentService.deleteByProductId - do nothing
+            assignStatic.when(() -> UserProductAssignmentService.deleteByProductId(productId)).thenAnswer(inv -> null);
+
+            // productRepository.delete should work
+            doNothing().when(productRepository).delete(product);
+
+            productService.deleteProduct(productId, actorId);
+
+            // verify ApplicationService.delete called for each app
+            appStatic.verify(() -> ApplicationService.findByProductId(productId), times(1));
+            appStatic.verify(() -> ApplicationService.delete(app1), times(1));
+            appStatic.verify(() -> ApplicationService.delete(app2), times(1));
+
+            assignStatic.verify(() -> UserProductAssignmentService.deleteByProductId(productId), times(1));
+            verify(productRepository, times(1)).delete(product);
+        }
     }
 
     @Test
@@ -397,13 +456,19 @@ public class ProductServiceTest {
         app.setId(UUID.randomUUID());
         app.setProduct(product);
 
-        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
-        when(applicationRepository.findByProductId(productId)).thenReturn(List.of(app));
+        try (MockedStatic<UserService> userStatic = Mockito.mockStatic(UserService.class);
+             MockedStatic<ApplicationService> appStatic = Mockito.mockStatic(ApplicationService.class);
+             MockedStatic<UserProductAssignmentService> assignStatic = Mockito.mockStatic(UserProductAssignmentService.class)) {
 
-        doThrow(new RuntimeException("db error")).when(applicationRepository).delete(any(Application.class));
+            userStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            appStatic.when(() -> ApplicationService.findByProductId(productId)).thenReturn(List.of(app));
+            // simulate delete throwing
+            appStatic.when(() -> ApplicationService.delete(any(Application.class))).thenThrow(new RuntimeException("db error"));
 
-        ConflictException ex = assertThrows(ConflictException.class, () -> productService.deleteProduct(productId, actorId));
-        assertTrue(ex.getMessage().contains("Failed to delete product"));
+            ConflictException ex = assertThrows(ConflictException.class, () -> productService.deleteProduct(productId, actorId));
+            assertTrue(ex.getMessage().contains("Failed to delete product"));
+            appStatic.verify(() -> ApplicationService.delete(any(Application.class)), times(1));
+        }
     }
 }

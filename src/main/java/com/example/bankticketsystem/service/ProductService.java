@@ -5,6 +5,7 @@ import com.example.bankticketsystem.dto.ProductRequest;
 import com.example.bankticketsystem.exception.*;
 import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.Product;
+import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.AssignmentRole;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.ApplicationRepository;
@@ -16,24 +17,19 @@ import org.springframework.data.domain.*;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class ProductService {
 
     private final ProductRepository productRepository;
-    private final UserRepository userRepository;
-    private final UserProductAssignmentRepository assignmentRepository;
-    private final ApplicationRepository applicationRepository;
+    // Статическое поле-холдер
+    private static volatile ProductRepository STATIC_PRODUCT_REPOSITORY;
 
-    public ProductService(ProductRepository productRepository,
-                          UserRepository userRepository,
-                          UserProductAssignmentRepository assignmentRepository,
-                          ApplicationRepository applicationRepository) {
+    public ProductService(ProductRepository productRepository) {
         this.productRepository = productRepository;
-        this.userRepository = userRepository;
-        this.assignmentRepository = assignmentRepository;
-        this.applicationRepository = applicationRepository;
+        ProductService.STATIC_PRODUCT_REPOSITORY = productRepository;
     }
 
     public ProductDto create(ProductRequest req) {
@@ -84,14 +80,14 @@ public class ProductService {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
         }
-        var actor = userRepository.findById(actorId)
+        var actor = UserService.findById(actorId)
                 .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new NotFoundException("Product not found: " + productId));
 
         boolean isAdmin = actor.getRole() == UserRole.ROLE_ADMIN;
-        boolean isOwner = assignmentRepository.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
+        boolean isOwner = UserProductAssignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
 
         if (!isAdmin && !isOwner) {
             throw new ForbiddenException("Only ADMIN or PRODUCT_OWNER can update product");
@@ -108,30 +104,34 @@ public class ProductService {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
         }
-        var actor = userRepository.findById(actorId)
+        var actor = UserService.findById(actorId)
                 .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new NotFoundException("Product not found: " + productId));
 
         boolean isAdmin = actor.getRole() == UserRole.ROLE_ADMIN;
-        boolean isOwner = assignmentRepository.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
+        boolean isOwner = UserProductAssignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
 
         if (!isAdmin && !isOwner) {
             throw new ForbiddenException("Only ADMIN or PRODUCT_OWNER can delete product");
         }
 
         try {
-            List<Application> apps = applicationRepository.findByProductId(productId);
+            List<Application> apps = ApplicationService.findByProductId(productId);
             for (Application a : apps) {
-                applicationRepository.delete(a);
+                ApplicationService.delete(a);
             }
 
-            assignmentRepository.deleteByProductId(productId);
+            UserProductAssignmentService.deleteByProductId(productId);
 
             productRepository.delete(product);
         } catch (Exception ex) {
             throw new ConflictException("Failed to delete product and its applications: " + ex.getMessage());
         }
+    }
+
+    public static Optional<Product> findById(UUID id) {
+        return STATIC_PRODUCT_REPOSITORY.findById(id);
     }
 }

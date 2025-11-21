@@ -15,18 +15,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
-    private final ApplicationRepository applicationRepository;
+    // Статическое поле-холдер
+    private static volatile UserRepository STATIC_USER_REPOSITORY;
 
-    public UserService(UserRepository userRepository,
-                       ApplicationRepository applicationRepository) {
+    public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
-        this.applicationRepository = applicationRepository;
+
+        UserService.STATIC_USER_REPOSITORY = userRepository;
     }
 
     public UserDto create(UserRequest req) {
@@ -115,9 +117,9 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("User not found: " + userId));
 
         try {
-            List<Application> apps = applicationRepository.findByApplicantId(userId);
+            List<Application> apps = ApplicationService.findByApplicantId(userId);
             for (Application a : apps) {
-                applicationRepository.delete(a);
+                ApplicationService.delete(a);
             }
             userRepository.delete(existing);
         } catch (Exception ex) {
@@ -157,5 +159,9 @@ public class UserService {
         if (u.getRole() == UserRole.ROLE_CLIENT) return;
         u.setRole(UserRole.ROLE_CLIENT);
         userRepository.save(u);
+    }
+
+    public static Optional<User> findById(UUID id) {
+        return STATIC_USER_REPOSITORY.findById(id);
     }
 }

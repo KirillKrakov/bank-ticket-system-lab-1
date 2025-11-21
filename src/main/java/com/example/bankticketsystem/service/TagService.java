@@ -7,6 +7,7 @@ import com.example.bankticketsystem.exception.NotFoundException;
 import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.Product;
 import com.example.bankticketsystem.model.entity.Tag;
+import com.example.bankticketsystem.repository.ApplicationRepository;
 import com.example.bankticketsystem.repository.TagRepository;
 import io.swagger.v3.oas.annotations.tags.Tags;
 import org.springframework.data.domain.Page;
@@ -23,8 +24,11 @@ import java.util.stream.Collectors;
 public class TagService {
 
     private final TagRepository repo;
+    // Статическое поле-холдер
+    private static volatile TagRepository STATIC_TAG_REPOSITORY;
     public TagService(TagRepository repo) {
         this.repo = repo;
+        TagService.STATIC_TAG_REPOSITORY = repo;
     }
 
     public Tag createIfNotExists(String name) {
@@ -86,5 +90,9 @@ public class TagService {
         dto.setId(UUID.randomUUID());
         dto.setName(t.getName());
         return dto;
+    }
+
+    public static Tag createTag(String name) {
+        return (new TagService(STATIC_TAG_REPOSITORY)).createIfNotExists(name);
     }
 }
