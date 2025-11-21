@@ -7,10 +7,12 @@ import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.ApplicationRepository;
 import com.example.bankticketsystem.repository.UserRepository;
+import com.password4j.Hash;
+import com.password4j.HashBuilder;
+import com.password4j.Password;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Instant;
 import java.util.List;
@@ -18,6 +20,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 class UserServiceTest {
@@ -27,9 +30,6 @@ class UserServiceTest {
 
     @Mock
     private ApplicationRepository applicationRepository;
-
-    @Mock
-    private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private UserService userService;
@@ -51,28 +51,38 @@ class UserServiceTest {
 
         when(userRepository.existsByUsername(req.getUsername())).thenReturn(false);
         when(userRepository.existsByEmail(req.getEmail())).thenReturn(false);
-        when(passwordEncoder.encode(req.getPassword())).thenReturn("encodedPassword");
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         when(userRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
 
-        var dto = userService.create(req);
+        try (MockedStatic<Password> mockedStatic = Mockito.mockStatic(Password.class)) {
+            HashBuilder mockHashBuilder = mock(HashBuilder.class);
+            Hash mockHash = mock(Hash.class);
 
-        verify(userRepository, times(1)).existsByUsername(req.getUsername());
-        verify(userRepository, times(1)).existsByEmail(req.getEmail());
-        verify(passwordEncoder, times(1)).encode(req.getPassword());
-        verify(userRepository, times(1)).save(any(User.class));
+            when(mockHash.getResult()).thenReturn("encodedPassword");
+            when(mockHashBuilder.withBcrypt()).thenReturn(mockHash);
 
-        User saved = captor.getValue();
-        assertEquals("alice", saved.getUsername());
-        assertEquals("alice@example.com", saved.getEmail());
-        assertEquals("encodedPassword", saved.getPasswordHash());
-        assertEquals(UserRole.ROLE_USER, saved.getRole());
-        assertNotNull(saved.getCreatedAt());
+            mockedStatic.when(() -> Password.hash(anyString())).thenReturn(mockHashBuilder);
 
-        assertEquals(saved.getId(), dto.getId());
-        assertEquals("alice", dto.getUsername());
-        assertEquals("alice@example.com", dto.getEmail());
-        assertEquals(UserRole.ROLE_USER, dto.getRole());
+            var dto = userService.create(req);
+
+            mockedStatic.verify(() -> Password.hash(req.getPassword()), times(1));
+
+            verify(userRepository, times(1)).existsByUsername(req.getUsername());
+            verify(userRepository, times(1)).existsByEmail(req.getEmail());
+            verify(userRepository, times(1)).save(any(User.class));
+
+            User saved = captor.getValue();
+            assertEquals("alice", saved.getUsername());
+            assertEquals("alice@example.com", saved.getEmail());
+            assertEquals("encodedPassword", saved.getPasswordHash());
+            assertEquals(UserRole.ROLE_USER, saved.getRole());
+            assertNotNull(saved.getCreatedAt());
+
+            assertEquals(saved.getId(), dto.getId());
+            assertEquals("alice", dto.getUsername());
+            assertEquals("alice@example.com", dto.getEmail());
+            assertEquals(UserRole.ROLE_USER, dto.getRole());
+        }
     }
 
     @Test
@@ -132,7 +142,6 @@ class UserServiceTest {
 
         when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.of(existing));
-        when(passwordEncoder.encode("newStrongPass123")).thenReturn("encodedHash");
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         UserDto req = new UserDto();
@@ -140,24 +149,35 @@ class UserServiceTest {
         req.setEmail("new@example.com");
         req.setPassword("newStrongPass123");
 
-        var dto = userService.updateUser(id, actorId, req);
+        try (MockedStatic<Password> mockedStatic = Mockito.mockStatic(Password.class)) {
+            HashBuilder mockHashBuilder = mock(HashBuilder.class);
+            Hash mockHash = mock(Hash.class);
 
-        verify(userRepository, times(1)).findById(actorId);
-        verify(userRepository, times(1)).findById(id);
-        verify(passwordEncoder, times(1)).encode("newStrongPass123");
-        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository, times(1)).save(captor.capture());
+            when(mockHash.getResult()).thenReturn("encodedHash");
+            when(mockHashBuilder.withBcrypt()).thenReturn(mockHash);
 
-        User saved = captor.getValue();
-        assertEquals("newname", saved.getUsername());
-        assertEquals("new@example.com", saved.getEmail());
-        assertEquals("encodedHash", saved.getPasswordHash());
-        assertNotNull(saved.getUpdatedAt());
+            mockedStatic.when(() -> Password.hash(anyString())).thenReturn(mockHashBuilder);
 
-        assertEquals(saved.getId(), dto.getId());
-        assertEquals("newname", dto.getUsername());
-        assertEquals("new@example.com", dto.getEmail());
-        assertEquals(UserRole.ROLE_USER, dto.getRole());
+            var dto = userService.updateUser(id, actorId, req);
+
+            mockedStatic.verify(() -> Password.hash("newStrongPass123"), times(1));
+
+            verify(userRepository, times(1)).findById(actorId);
+            verify(userRepository, times(1)).findById(id);
+            ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+            verify(userRepository, times(1)).save(captor.capture());
+
+            User saved = captor.getValue();
+            assertEquals("newname", saved.getUsername());
+            assertEquals("new@example.com", saved.getEmail());
+            assertEquals("encodedHash", saved.getPasswordHash());
+            assertNotNull(saved.getUpdatedAt());
+
+            assertEquals(saved.getId(), dto.getId());
+            assertEquals("newname", dto.getUsername());
+            assertEquals("new@example.com", dto.getEmail());
+            assertEquals(UserRole.ROLE_USER, dto.getRole());
+        }
     }
 
     @Test

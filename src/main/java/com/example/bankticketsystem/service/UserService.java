@@ -7,7 +7,7 @@ import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.ApplicationRepository;
 import com.example.bankticketsystem.repository.UserRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import com.password4j.Password;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.*;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,15 +20,12 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
     private final ApplicationRepository applicationRepository;
 
     public UserService(UserRepository userRepository,
-                       ApplicationRepository applicationRepository,
-                       PasswordEncoder passwordEncoder) {
+                       ApplicationRepository applicationRepository) {
         this.userRepository = userRepository;
         this.applicationRepository = applicationRepository;
-        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -55,7 +52,7 @@ public class UserService {
         u.setId(UUID.randomUUID());
         u.setUsername(username);
         u.setEmail(email);
-        u.setPasswordHash(passwordEncoder.encode(req.getPassword()));
+        u.setPasswordHash(Password.hash(req.getPassword()).withBcrypt().getResult());
         u.setRole(UserRole.ROLE_USER);
         u.setCreatedAt(Instant.now());
         userRepository.save(u);
@@ -103,7 +100,7 @@ public class UserService {
 
         if (req.getUsername() != null) existing.setUsername(req.getUsername());
         if (req.getEmail() != null) existing.setEmail(req.getEmail());
-        if (req.getPassword() != null) existing.setPasswordHash(passwordEncoder.encode(req.getPassword()));
+        if (req.getPassword() != null) existing.setPasswordHash(Password.hash(req.getPassword()).withBcrypt().getResult());
         existing.setUpdatedAt(Instant.now());
         userRepository.save(existing);
         return toDto(existing);

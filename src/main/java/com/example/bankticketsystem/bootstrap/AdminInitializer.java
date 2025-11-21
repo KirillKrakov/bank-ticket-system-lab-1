@@ -5,7 +5,7 @@ import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.UserRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import com.password4j.Password;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -15,12 +15,9 @@ import java.util.UUID;
 public class AdminInitializer implements ApplicationRunner {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
 
-    public AdminInitializer(UserRepository userRepository,
-                            PasswordEncoder passwordEncoder) {
+    public AdminInitializer(UserRepository userRepository) {
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -35,7 +32,7 @@ public class AdminInitializer implements ApplicationRunner {
         u.setId(UUID.randomUUID());
         u.setUsername(username);
         u.setEmail(email.toLowerCase());
-        u.setPasswordHash(passwordEncoder.encode(plainPassword));
+        u.setPasswordHash(Password.hash(plainPassword).withBcrypt().getResult());
         u.setRole(UserRole.ROLE_ADMIN);
         u.setCreatedAt(Instant.now());
         userRepository.save(u);
