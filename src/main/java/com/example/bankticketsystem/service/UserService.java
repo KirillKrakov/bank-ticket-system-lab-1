@@ -21,12 +21,18 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final ApplicationRepository applicationRepository;
 
-    public UserService(UserRepository userRepository,
-                       ApplicationRepository applicationRepository) {
+    public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
-        this.applicationRepository = applicationRepository;
+    }
+
+    public User findById(UUID userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+    }
+
+    public void deleteUser(User user) {
+        userRepository.delete(user);
     }
 
     public UserDto create(UserRequest req) {
@@ -98,31 +104,6 @@ public class UserService {
         existing.setUpdatedAt(Instant.now());
         userRepository.save(existing);
         return toDto(existing);
-    }
-
-    @Transactional
-    public void deleteUser(UUID userId, UUID actorId) {
-        if (actorId == null) {
-            throw new UnauthorizedException("You must specify the actorId to authorize in this request");
-        }
-        User actor = userRepository.findById(actorId)
-                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
-        if (actor.getRole() != UserRole.ROLE_ADMIN) {
-            throw new ForbiddenException("Only ADMIN can delete users");
-        }
-
-        User existing = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
-
-        try {
-            List<Application> apps = applicationRepository.findByApplicantId(userId);
-            for (Application a : apps) {
-                applicationRepository.delete(a);
-            }
-            userRepository.delete(existing);
-        } catch (Exception ex) {
-            throw new ConflictException("Failed to delete user and its applications: " + ex.getMessage());
-        }
     }
 
     public void promoteToManager(UUID id, UUID actorId) {

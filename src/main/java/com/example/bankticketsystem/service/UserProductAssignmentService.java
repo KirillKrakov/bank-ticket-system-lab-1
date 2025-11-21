@@ -19,20 +19,28 @@ import java.util.stream.Collectors;
 public class UserProductAssignmentService {
 
     private final UserProductAssignmentRepository repo;
-    private final UserRepository userRepo;
-    private final ProductRepository productRepo;
+    private final UserService userService;
+    private final ProductService productService;
 
-    public UserProductAssignmentService(UserProductAssignmentRepository repo,
-                                        UserRepository userRepo,
-                                        ProductRepository productRepo) {
-        this.repo = repo; this.userRepo = userRepo; this.productRepo = productRepo;
+    public UserProductAssignmentService(UserProductAssignmentRepository repo, UserService userService, ProductService productService) {
+        this.repo = repo;
+        this.userService = userService;
+        this.productService = productService;
+    }
+
+    public boolean existsByUserIdAndProductIdAndRoleOnProduct(UUID userId, UUID productId, AssignmentRole role) {
+        return repo.existsByUserIdAndProductIdAndRoleOnProduct(userId, productId, role);
+    }
+
+    public void deleteByProductId(UUID productId) {
+        repo.deleteByProductId(productId);
     }
 
     public UserProductAssignment assign(UUID actorId, UUID userId, UUID productId, AssignmentRole role) {
-        User u = userRepo.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
-        Product p = productRepo.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
+        User u = userService.findById(userId);
+        Product p = productService.findById(productId);
 
-        var actor = userRepo.findById(actorId).orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
+        var actor = userService.findById(actorId);
         boolean isAdmin = actor.getRole() == UserRole.ROLE_ADMIN;
         boolean isOwner = repo.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
 
@@ -71,22 +79,21 @@ public class UserProductAssignmentService {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
         }
-        var actor = userRepo.findById(actorId)
-                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
+        var actor = userService.findById(actorId);
 
         if (actor.getRole() != UserRole.ROLE_ADMIN) {
             throw new ForbiddenException("Only ADMIN can delete assignments!");
         }
 
         if (userId != null && productId != null) {
-            User u = userRepo.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
-            Product p = productRepo.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
+            User u = userService.findById(userId);
+            Product p = productService.findById(productId);
             repo.deleteByUserIdAndProductId(userId, productId);
         } else if (userId != null) {
-            User u = userRepo.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+            User u = userService.findById(userId);
             repo.deleteByUserId(userId);
         } else if (productId != null) {
-            Product p = productRepo.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
+            Product p = productService.findById(productId);
             repo.deleteByProductId(productId);
         } else {
             repo.deleteAll();
