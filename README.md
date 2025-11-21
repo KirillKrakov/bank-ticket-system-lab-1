@@ -92,7 +92,7 @@
 
 #### 5. UserProductAssignment (id, user, product, roleOnProduct, assignedAt) + UserProductAssignmentDto (id, user, product, role, assignedAt)
 
-- **Create**: `POST "/api/v1/assignments"` + UserProductAssignmentDto (userId, productId, role) (в теле запроса) -- создание новой связи между пользователем и продуктом с указанием того, какую роль занимает пользователь относительно этого продукта (дополнительное поле в ManyToMany-связи), соответствует методу assign
+- **Create**: `POST "/api/v1/assignments"` + UserProductAssignmentDto (userId, productId, role) (в теле запроса) -- создание новой связи между пользователем и продуктом с указанием того, какую роль занимает пользователь относительно этого продукта (дополнительное поле в ManyToMany-связи, права только у админов и владельца продукта), соответствует методу assign
 - **Read**: `GET "/api/v1/assignments?userId={?}&productId={?}"` -- чтение всех связей между указанными пользователем и продуктом, соответствует методу list
 - **Delete**: `DELETE "/api/v1/assignments?actorId={?}&userId={?}&productId={?}"` -- удаление всех связей между указанными пользователем и продуктом, соответствует методу deleteAssignments
 
