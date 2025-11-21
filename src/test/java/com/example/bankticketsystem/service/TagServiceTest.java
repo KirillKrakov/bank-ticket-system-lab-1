@@ -13,6 +13,7 @@ import com.example.bankticketsystem.repository.TagRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
+import org.springframework.data.domain.Page;
 
 import java.time.Instant;
 import java.util.*;
@@ -84,17 +85,19 @@ public class TagServiceTest {
         t2.setId(UUID.randomUUID());
         t2.setName("b");
 
-        when(repo.findAll()).thenReturn(List.of(t1, t2));
+        when(repo.findAll(any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(t1, t2)));
 
-        List<TagDto> list = tagService.listAll();
+        org.springframework.data.domain.Page<TagDto> p = tagService.listAll(0, 20);
 
-        assertEquals(2, list.size());
-        List<String> names = Arrays.asList(list.get(0).getName(), list.get(1).getName());
+        assertEquals(2, p.getNumberOfElements());
+        List<String> names = p.getContent().stream().map(TagDto::getName).toList();
         assertTrue(names.contains("a"));
         assertTrue(names.contains("b"));
 
-        verify(repo, times(1)).findAll();
+        verify(repo, times(1)).findAll(any(org.springframework.data.domain.Pageable.class));
     }
+
 
     // -----------------------
     // ReadTag tests

@@ -1,8 +1,6 @@
 package com.example.bankticketsystem.service;
 
 import com.example.bankticketsystem.dto.UserProductAssignmentDto;
-import com.example.bankticketsystem.exception.BadRequestException;
-import com.example.bankticketsystem.exception.ConflictException;
 import com.example.bankticketsystem.exception.ForbiddenException;
 import com.example.bankticketsystem.exception.NotFoundException;
 import com.example.bankticketsystem.model.entity.Product;
@@ -89,7 +87,7 @@ public class AssignmentServiceTest {
         UUID userId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
-        User actor = new User(); actor.setId(actorId); actor.setRole(UserRole.ROLE_USER); // Изменено на не-админ, чтобы тестировать owner-сценарий
+        User actor = new User(); actor.setId(actorId); actor.setRole(UserRole.ROLE_CLIENT); // Изменено на не-админ, чтобы тестировать owner-сценарий
         User user = new User(); user.setId(userId);
         Product product = new Product(); product.setId(productId);
 
@@ -127,7 +125,7 @@ public class AssignmentServiceTest {
         UUID userId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
-        User actor = new User(); actor.setId(actorId); actor.setRole(UserRole.ROLE_USER);
+        User actor = new User(); actor.setId(actorId); actor.setRole(UserRole.ROLE_CLIENT);
         User user = new User(); user.setId(userId);
         Product product = new Product(); product.setId(productId);
 
@@ -268,7 +266,7 @@ public class AssignmentServiceTest {
     @Test
     public void deleteAssignments_throwsConflict_whenActorNotAdmin() {
         UUID actorId = UUID.randomUUID();
-        User actor = new User(); actor.setId(actorId); actor.setRole(UserRole.ROLE_USER);
+        User actor = new User(); actor.setId(actorId); actor.setRole(UserRole.ROLE_CLIENT);
         when(userRepo.findById(actorId)).thenReturn(Optional.of(actor));
         assertThrows(ForbiddenException.class, () -> svc.deleteAssignments(actorId, null, null));
     }

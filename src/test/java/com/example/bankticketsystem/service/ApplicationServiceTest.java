@@ -238,7 +238,7 @@ public class ApplicationServiceTest {
         UUID appId = UUID.randomUUID();
         User user = new User();
         user.setId(actorId);
-        user.setRole(UserRole.ROLE_USER);
+        user.setRole(UserRole.ROLE_CLIENT);
         Application app = new Application();
         User applicant = new User();
         applicant.setId(UUID.randomUUID());
@@ -256,7 +256,7 @@ public class ApplicationServiceTest {
         UUID appId = UUID.randomUUID();
         User user = new User();
         user.setId(actorId);
-        user.setRole(UserRole.ROLE_USER);
+        user.setRole(UserRole.ROLE_CLIENT);
 
         Application app = new Application();
         app.setId(appId);
@@ -299,7 +299,7 @@ public class ApplicationServiceTest {
         UUID appId = UUID.randomUUID();
         User user = new User();
         user.setId(actorId);
-        user.setRole(UserRole.ROLE_USER);
+        user.setRole(UserRole.ROLE_CLIENT);
 
         Application app = new Application();
         User applicant = new User();
@@ -318,7 +318,7 @@ public class ApplicationServiceTest {
         UUID appId = UUID.randomUUID();
         User user = new User();
         user.setId(actorId);
-        user.setRole(UserRole.ROLE_USER);
+        user.setRole(UserRole.ROLE_CLIENT);
 
         Application app = new Application();
         app.setId(appId);
@@ -398,7 +398,7 @@ public class ApplicationServiceTest {
 
         User actor = new User();
         actor.setId(actorId);
-        actor.setRole(UserRole.ROLE_USER);
+        actor.setRole(UserRole.ROLE_CLIENT);
 
         Application app = new Application();
         app.setId(appId);
@@ -542,7 +542,7 @@ public class ApplicationServiceTest {
         UUID actorId = UUID.randomUUID();
         User actor = new User();
         actor.setId(actorId);
-        actor.setRole(UserRole.ROLE_USER);
+        actor.setRole(UserRole.ROLE_CLIENT);
         when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         assertThrows(ForbiddenException.class, () -> applicationService.deleteApplication(UUID.randomUUID(), actorId));
     }
@@ -626,7 +626,7 @@ public class ApplicationServiceTest {
         UUID appId = UUID.randomUUID();
         User actor = new User();
         actor.setId(actorId);
-        actor.setRole(UserRole.ROLE_USER);
+        actor.setRole(UserRole.ROLE_CLIENT);
 
         Application app = new Application();
         User applicant = new User();
@@ -655,7 +655,7 @@ public class ApplicationServiceTest {
         h1.setApplication(app);
         h1.setOldStatus(null);
         h1.setNewStatus(ApplicationStatus.SUBMITTED);
-        h1.setChangedBy(UserRole.ROLE_USER);
+        h1.setChangedBy(UserRole.ROLE_CLIENT);
         h1.setChangedAt(Instant.now());
 
         ApplicationHistory h2 = new ApplicationHistory();

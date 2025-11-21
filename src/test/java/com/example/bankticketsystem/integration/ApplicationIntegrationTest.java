@@ -75,7 +75,7 @@ public class ApplicationIntegrationTest {
         applicant.setUsername("applicant");
         applicant.setEmail("applicant@example.com");
         applicant.setPasswordHash("x"); // not used by controller
-        applicant.setRole(UserRole.ROLE_USER);
+        applicant.setRole(UserRole.ROLE_CLIENT);
         applicant.setCreatedAt(Instant.now());
         userRepository.save(applicant);
 

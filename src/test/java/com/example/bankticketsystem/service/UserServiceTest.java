@@ -75,13 +75,13 @@ class UserServiceTest {
             assertEquals("alice", saved.getUsername());
             assertEquals("alice@example.com", saved.getEmail());
             assertEquals("encodedPassword", saved.getPasswordHash());
-            assertEquals(UserRole.ROLE_USER, saved.getRole());
+            assertEquals(UserRole.ROLE_CLIENT, saved.getRole());
             assertNotNull(saved.getCreatedAt());
 
             assertEquals(saved.getId(), dto.getId());
             assertEquals("alice", dto.getUsername());
             assertEquals("alice@example.com", dto.getEmail());
-            assertEquals(UserRole.ROLE_USER, dto.getRole());
+            assertEquals(UserRole.ROLE_CLIENT, dto.getRole());
         }
     }
 
@@ -137,7 +137,7 @@ class UserServiceTest {
         existing.setUsername("old");
         existing.setEmail("old@example.com");
         existing.setPasswordHash("oldhash");
-        existing.setRole(UserRole.ROLE_USER);
+        existing.setRole(UserRole.ROLE_CLIENT);
         existing.setCreatedAt(Instant.now().minusSeconds(3600));
 
         when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
@@ -176,7 +176,7 @@ class UserServiceTest {
             assertEquals(saved.getId(), dto.getId());
             assertEquals("newname", dto.getUsername());
             assertEquals("new@example.com", dto.getEmail());
-            assertEquals(UserRole.ROLE_USER, dto.getRole());
+            assertEquals(UserRole.ROLE_CLIENT, dto.getRole());
         }
     }
 
@@ -264,7 +264,7 @@ class UserServiceTest {
 
         User u = new User();
         u.setId(id);
-        u.setRole(UserRole.ROLE_USER);
+        u.setRole(UserRole.ROLE_CLIENT);
 
         when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.of(u));
@@ -344,7 +344,7 @@ class UserServiceTest {
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository, times(1)).save(captor.capture());
         User saved = captor.getValue();
-        assertEquals(UserRole.ROLE_USER, saved.getRole());
+        assertEquals(UserRole.ROLE_CLIENT, saved.getRole());
     }
 
     @Test
@@ -358,7 +358,7 @@ class UserServiceTest {
 
         User u = new User();
         u.setId(id);
-        u.setRole(UserRole.ROLE_USER);
+        u.setRole(UserRole.ROLE_CLIENT);
 
         when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.of(u));

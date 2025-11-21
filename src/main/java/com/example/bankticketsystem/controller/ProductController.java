@@ -74,7 +74,7 @@ public class ProductController {
         return productDto == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(productDto);
     }
 
-    // Update: PUT “/api/v1/products/{id}?actorId={adminOrOwnerId}” + ProductCreateRequest (Body)
+    // Update: PUT “/api/v1/products/{id}?actorId={adminOrOwnerId}” + ProductDto (name, description) (Body)
     @Operation(summary = "Update the data of a specific product found by ID", description = "Update any data of single product and returns it " +
             "if the actor has sufficient rights")
     @ApiResponses(value = {
@@ -99,7 +99,7 @@ public class ProductController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Product deleted successfully"),
             @ApiResponse(responseCode = "401", description = "Actor is unauthorized (actorId is null"),
-            @ApiResponse(responseCode = "403", description = "Insufficient level of actor's rights to delete user (not ADMIN)"),
+            @ApiResponse(responseCode = "403", description = "Insufficient level of actor's rights to delete user (not ADMIN or PRODUCT_OWNER)"),
             @ApiResponse(responseCode = "404", description = "Product or actor with their ID are not found"),
             @ApiResponse(responseCode = "409", description = "An error occurred while cascading deletion of product and product-related applications")
     })

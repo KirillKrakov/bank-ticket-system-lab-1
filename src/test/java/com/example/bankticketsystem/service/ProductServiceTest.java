@@ -208,7 +208,7 @@ public class ProductServiceTest {
 
         User actor = new User();
         actor.setId(actorId);
-        actor.setRole(UserRole.ROLE_USER);
+        actor.setRole(UserRole.ROLE_CLIENT);
 
         Product product = new Product();
         product.setId(productId);
@@ -263,7 +263,7 @@ public class ProductServiceTest {
 
         User actor = new User();
         actor.setId(actorId);
-        actor.setRole(UserRole.ROLE_USER);
+        actor.setRole(UserRole.ROLE_CLIENT);
 
         Product existing = new Product();
         existing.setId(productId);
@@ -328,7 +328,7 @@ public class ProductServiceTest {
 
         User actor = new User();
         actor.setId(actorId);
-        actor.setRole(UserRole.ROLE_USER);
+        actor.setRole(UserRole.ROLE_CLIENT);
 
         Product product = new Product();
         product.setId(productId);

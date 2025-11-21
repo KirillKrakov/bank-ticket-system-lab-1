@@ -53,7 +53,7 @@ public class UserService {
         u.setUsername(username);
         u.setEmail(email);
         u.setPasswordHash(Password.hash(req.getPassword()).withBcrypt().getResult());
-        u.setRole(UserRole.ROLE_USER);
+        u.setRole(UserRole.ROLE_CLIENT);
         u.setCreatedAt(Instant.now());
         userRepository.save(u);
 
@@ -162,8 +162,8 @@ public class UserService {
 
         User u = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User not found: " + id));
-        if (u.getRole() == UserRole.ROLE_USER) return;
-        u.setRole(UserRole.ROLE_USER);
+        if (u.getRole() == UserRole.ROLE_CLIENT) return;
+        u.setRole(UserRole.ROLE_CLIENT);
         userRepository.save(u);
     }
 }
