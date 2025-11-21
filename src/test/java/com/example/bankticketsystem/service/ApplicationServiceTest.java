@@ -36,7 +36,7 @@ public class ApplicationServiceTest {
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        applicationService = new ApplicationService(applicationRepository, userRepository, productRepository,
+        applicationService = new ApplicationService(applicationRepository, userRepository, userService, productRepository,
                 historyRepository, tagService, applicationHistoryRepository);
     }
 
