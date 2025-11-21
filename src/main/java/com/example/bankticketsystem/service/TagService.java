@@ -3,9 +3,15 @@ package com.example.bankticketsystem.service;
 import com.example.bankticketsystem.dto.ApplicationDto;
 import com.example.bankticketsystem.dto.DocumentDto;
 import com.example.bankticketsystem.dto.TagDto;
+import com.example.bankticketsystem.exception.NotFoundException;
 import com.example.bankticketsystem.model.entity.Application;
+import com.example.bankticketsystem.model.entity.Product;
 import com.example.bankticketsystem.model.entity.Tag;
 import com.example.bankticketsystem.repository.TagRepository;
+import io.swagger.v3.oas.annotations.tags.Tags;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,16 +39,16 @@ public class TagService {
     }
 
     @Transactional(readOnly = true)
-    public List<TagDto> listAll() {
-        return repo.findAll().stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
+    public Page<TagDto> listAll(int page, int size) {
+        Pageable p = PageRequest.of(page, size);
+        Page<Tag> tags = repo.findAll(p);
+        return tags.map(this::toDto);
     }
 
     @Transactional(readOnly = true)
     public TagDto getTagWithApplications(String name) {
         Tag tag = repo.findByNameWithApplications(name)
-                .orElseThrow(() -> new RuntimeException("Tag not found: " + name));
+                .orElseThrow(() -> new NotFoundException("Tag not found: " + name));
 
         TagDto dto = toDto(tag);
 

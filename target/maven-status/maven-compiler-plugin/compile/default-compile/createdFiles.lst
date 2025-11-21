@@ -1,5 +1,0 @@
-com\example\bankticketsystem\exception\ForbiddenException.class
-com\example\bankticketsystem\dto\UserDto.class
-com\example\bankticketsystem\exception\UnauthorizedException.class
-com\example\bankticketsystem\dto\StatusChangeDto.class
-com\example\bankticketsystem\dto\UserProductAssignmentDto.class

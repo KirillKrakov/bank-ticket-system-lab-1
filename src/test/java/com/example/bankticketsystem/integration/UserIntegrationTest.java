@@ -113,7 +113,7 @@ public class UserIntegrationTest {
         assertEquals("updatedUser", updateResp.getBody().getUsername());
         assertEquals("updated@example.com", updateResp.getBody().getEmail());
         // role remains USER after update
-        assertEquals(UserRole.ROLE_USER, updateResp.getBody().getRole());
+        assertEquals(UserRole.ROLE_CLIENT, updateResp.getBody().getRole());
 
         // 4) promote to manager
         ResponseEntity<Void> promoteResp = rest.exchange(
@@ -140,7 +140,7 @@ public class UserIntegrationTest {
 
         ResponseEntity<UserDto> afterDemoteGet = rest.getForEntity("/api/v1/users/" + targetId, UserDto.class);
         assertEquals(HttpStatus.OK, afterDemoteGet.getStatusCode());
-        assertEquals(UserRole.ROLE_USER, Objects.requireNonNull(afterDemoteGet.getBody()).getRole());
+        assertEquals(UserRole.ROLE_CLIENT, Objects.requireNonNull(afterDemoteGet.getBody()).getRole());
 
         // 6) delete the user
         ResponseEntity<Void> deleteResp = rest.exchange(
