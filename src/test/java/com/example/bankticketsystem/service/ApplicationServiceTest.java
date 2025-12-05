@@ -98,6 +98,7 @@ public class ApplicationServiceTest {
         req.setApplicantId(aid);
         req.setProductId(pid);
         req.setTags(List.of("t1", "t2"));
+
         DocumentRequest d = new DocumentRequest();
         d.setFileName("f.txt");
         d.setContentType("text/plain");
@@ -148,6 +149,13 @@ public class ApplicationServiceTest {
         verify(tagService, times(1)).createTag("t1");
         verify(tagService, times(1)).createTag("t2");
         verify(userService, times(2)).findById(aid); // once in create, once in attachTags
+    }
+
+    // helper to support different naming of the history repo mock variable in test environments
+    private ApplicationHistoryRepository history_repository_or_history_mock(ApplicationHistoryRepository a, ApplicationHistoryRepository b) {
+        // simply return the first non-null (tests use historyRepository and applicationHistoryRepository as two mocks,
+        // but we verify the one that was provided to ApplicationService in constructor: historyRepository)
+        return a != null ? a : b;
     }
 
     // -----------------------
@@ -342,7 +350,12 @@ public class ApplicationServiceTest {
         when(userService.findById(actorId)).thenReturn(Optional.of(user));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
 
-        assertThrows(ForbiddenException.class, () -> applicationService.removeTags(appId, List.of("t"), actorId));
+        assertThrows(ForbiddenException.class, () -> application_service_call_removeTags(applicationService, appId, List.of("t"), actorId));
+    }
+
+    // small helper to call removeTags (keeps stack trace stable)
+    private void application_service_call_removeTags(ApplicationService svc, UUID appId, List<String> tags, UUID actorId) {
+        svc.removeTags(appId, tags, actorId);
     }
 
     @Test
@@ -424,7 +437,11 @@ public class ApplicationServiceTest {
         when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
 
-        assertThrows(ForbiddenException.class, () -> applicationService.changeStatus(appId, "APPROVED", actorId));
+        assertThrows(ForbiddenException.class, () -> application_service_call_changeStatus(applicationService, appId, "APPROVED", actorId));
+    }
+
+    private void application_service_call_changeStatus(ApplicationService svc, UUID appId, String status, UUID actorId) {
+        svc.changeStatus(appId, status, actorId);
     }
 
     @Test
@@ -488,7 +505,11 @@ public class ApplicationServiceTest {
         assertNotNull(dto);
         assertEquals(ApplicationStatus.APPROVED, dto.getStatus());
         verify(applicationRepository, never()).save(any());
-        verify(applicationHistoryRepository, never()).save(any());
+        verify(applicationHistory_repository_or_history_mock(applicationHistoryRepository, historyRepository), never()).save(any());
+    }
+
+    private ApplicationHistoryRepository applicationHistory_repository_or_history_mock(ApplicationHistoryRepository a, ApplicationHistoryRepository b) {
+        return a != null ? a : b;
     }
 
     @Test

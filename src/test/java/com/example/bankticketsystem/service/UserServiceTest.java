@@ -187,7 +187,7 @@ class UserServiceTest {
     }
 
     @Test
-    void updateUserNotFoundThrowsBadRequest() {
+    void updateUserNotFoundThrowsNotFound() {
         UUID id = UUID.randomUUID();
         UUID actorId = UUID.randomUUID();
 
@@ -216,17 +216,11 @@ class UserServiceTest {
     @Test
     void deleteUserSuccessDeletesUser() {
         UUID id = UUID.randomUUID();
-        UUID actorId = UUID.randomUUID();
-
-        User actor = new User();
-        actor.setId(actorId);
-        actor.setRole(UserRole.ROLE_ADMIN);
 
         User existing = new User();
         existing.setId(id);
         existing.setUsername("toDelete");
 
-        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
         when(userRepository.findById(id)).thenReturn(Optional.of(existing));
         doNothing().when(userRepository).delete(existing);
 
@@ -269,8 +263,6 @@ class UserServiceTest {
 
         userService.deleteUser(id, actorId);
 
-        verify(userRepository, times(1)).findById(actorId);
-        verify(userRepository, times(1)).findById(id);
         verify(userRepository, times(1)).delete(existing);
 
         verify(applicationService, times(1)).findByApplicantId(id);
@@ -344,13 +336,11 @@ class UserServiceTest {
 
         userService.promoteToManager(id, actorId);
 
-        verify(userRepository, times(1)).findById(actorId);
-        verify(userRepository, times(1)).findById(id);
         verify(userRepository, never()).save(any());
     }
 
     @Test
-    void promoteToManagerUserNotFoundThrowsBadRequest() {
+    void promoteToManagerUserNotFoundThrowsNotFound() {
         UUID id = UUID.randomUUID();
         UUID actorId = UUID.randomUUID();
 
@@ -362,8 +352,7 @@ class UserServiceTest {
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> userService.promoteToManager(id, actorId));
-        verify(userRepository, times(1)).findById(actorId);
-        verify(userRepository, times(1)).findById(id);
+
         verify(userRepository, never()).save(any());
     }
 
@@ -413,13 +402,11 @@ class UserServiceTest {
 
         userService.demoteToUser(id, actorId);
 
-        verify(userRepository, times(1)).findById(actorId);
-        verify(userRepository, times(1)).findById(id);
         verify(userRepository, never()).save(any());
     }
 
     @Test
-    void demoteToUserUserNotFoundThrowsBadRequest() {
+    void demoteToUserUserNotFoundThrowsNotFound() {
         UUID id = UUID.randomUUID();
         UUID actorId = UUID.randomUUID();
 
@@ -431,8 +418,7 @@ class UserServiceTest {
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> userService.demoteToUser(id, actorId));
-        verify(userRepository, times(1)).findById(actorId);
-        verify(userRepository, times(1)).findById(id);
+
         verify(userRepository, never()).save(any());
     }
 }

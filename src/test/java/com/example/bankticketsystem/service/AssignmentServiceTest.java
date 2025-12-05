@@ -42,7 +42,7 @@ public class AssignmentServiceTest {
     }
 
     // -----------------------
-    // createAssignment tests
+    // assign tests
     // -----------------------
     @Test
     public void assign_createsNewAssignment_whenNoExisting_and_actorIsAdmin() {
@@ -50,15 +50,9 @@ public class AssignmentServiceTest {
         UUID userId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
-        User actor = new User();
-        actor.setId(actorId);
-        actor.setRole(UserRole.ROLE_ADMIN);
-
-        User user = new User();
-        user.setId(userId);
-
-        Product product = new Product();
-        product.setId(productId);
+        User actor = new User(); actor.setId(actorId); actor.setRole(UserRole.ROLE_ADMIN);
+        User user = new User(); user.setId(userId);
+        Product product = new Product(); product.setId(productId);
 
         // repo mocks
         when(repo.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER)).thenReturn(false);
@@ -79,9 +73,6 @@ public class AssignmentServiceTest {
         verify(repo, times(1)).save(any(UserProductAssignment.class));
     }
 
-    // -----------------------
-    // updateAssignment tests
-    // -----------------------
     @Test
     public void assign_updatesExistingAssignment_whenFound_and_actorIsOwner() {
         UUID actorId = UUID.randomUUID();
@@ -118,11 +109,8 @@ public class AssignmentServiceTest {
         verify(repo, times(1)).save(existing);
     }
 
-    // -----------------------
-    // createAssignmentWhenNotAllowed tests
-    // -----------------------
     @Test
-    public void assign_throwsConflict_whenActorIsNotAdminAndNotOwner() {
+    public void assign_throwsForbidden_whenActorIsNotAdminAndNotOwner() {
         UUID actorId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
@@ -183,7 +171,7 @@ public class AssignmentServiceTest {
     }
 
     // -----------------------
-    // readAssignment tests
+    // list tests
     // -----------------------
     @Test
     public void list_byUser_returnsMappedDtos() {
@@ -235,9 +223,6 @@ public class AssignmentServiceTest {
         assertEquals(AssignmentRole.PRODUCT_OWNER, dto.getRole());
     }
 
-    // -----------------------
-    // readAllAssignments tests
-    // -----------------------
     @Test
     public void list_all_returnsMappedDtos() {
         User u = new User(); u.setId(UUID.randomUUID());
@@ -258,17 +243,17 @@ public class AssignmentServiceTest {
     }
 
     // -----------------------
-    // deleteAssignment tests
+    // deleteAssignments tests
     // -----------------------
     @Test
-    public void deleteAssignments_throwsBadRequest_whenActorMissing() {
+    public void deleteAssignments_throwsNotFound_whenActorMissing() {
         UUID actorId = UUID.randomUUID();
         when(userService.findById(actorId)).thenReturn(Optional.empty());
         assertThrows(NotFoundException.class, () -> svc.deleteAssignments(actorId, null, null));
     }
 
     @Test
-    public void deleteAssignments_throwsConflict_whenActorNotAdmin() {
+    public void deleteAssignments_throwsForbidden_whenActorNotAdmin() {
         UUID actorId = UUID.randomUUID();
         User actor = new User(); actor.setId(actorId); actor.setRole(UserRole.ROLE_CLIENT);
         when(userService.findById(actorId)).thenReturn(Optional.of(actor));
@@ -383,7 +368,7 @@ public class AssignmentServiceTest {
     }
 
     // -----------------------
-    // AssignmentToDto tests
+    // toDto tests
     // -----------------------
     @Test
     public void toDto_mapsAllFields() {

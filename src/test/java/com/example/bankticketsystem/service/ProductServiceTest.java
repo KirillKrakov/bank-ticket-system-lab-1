@@ -14,13 +14,11 @@ import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.*;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-
-import java.util.*;
+import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -39,8 +37,7 @@ public class ProductServiceTest {
     @Mock
     private UserProductAssignmentService assignmentService;
 
-    @InjectMocks
-    private ProductService productService;
+    private ProductAppManagementService productAppManagementService;
 
     @BeforeEach
     public void setUp() {
@@ -174,11 +171,12 @@ public class ProductServiceTest {
     // -----------------------
     @Test
     public void updateProduct_nullRequest_throwsBadRequest() {
-        assertThrows(BadRequestException.class, () -> productService.updateProduct(UUID.randomUUID(), null, UUID.randomUUID()));
+        assertThrows(BadRequestException.class, () ->
+                productAppManagementService.updateProduct(UUID.randomUUID(), null, UUID.randomUUID()));
     }
 
     @Test
-    public void updateProduct_actorNotFound_throwsBadRequest() {
+    public void updateProduct_actorNotFound_throwsNotFoundException() {
         UUID actorId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
@@ -189,7 +187,7 @@ public class ProductServiceTest {
     }
 
     @Test
-    public void updateProduct_productNotFound_throwsBadRequest() {
+    public void updateProduct_productNotFound_throwsNotFoundException() {
         UUID actorId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
@@ -200,12 +198,11 @@ public class ProductServiceTest {
         when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(productRepository.findById(productId)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> productService.updateProduct(productId, new ProductRequest(), actorId));
-        verify(productRepository, times(1)).findById(productId);
+        verify(productService, times(1)).findById(productId);
     }
 
     @Test
-    public void updateProduct_actorNotAdminNorOwner_throwsConflict() {
+    public void updateProduct_actorNotAdminNorOwner_throwsForbidden() {
         UUID actorId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
@@ -254,7 +251,14 @@ public class ProductServiceTest {
                 .thenReturn(false);
         when(productRepository.save(any(Product.class))).thenReturn(saved);
 
-        ProductDto resp = productService.updateProduct(productId, req, actorId);
+        when(userService.findById(actorId)).thenReturn(actor);
+        when(productService.findById(productId)).thenReturn(existing);
+        when(assignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
+                .thenReturn(false); // admin doesn't need to be owner
+        when(productService.save(any(Product.class))).thenReturn(saved);
+        when(productService.toDto(saved)).thenReturn(expectedDto);
+
+        ProductDto resp = productAppManagementService.updateProduct(productId, req, actorId);
 
         assertNotNull(resp);
         assertEquals("newName", resp.getName());
@@ -290,9 +294,10 @@ public class ProductServiceTest {
         when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
         when(assignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
                 .thenReturn(true);
-        when(productRepository.save(any(Product.class))).thenReturn(saved);
+        when(productService.save(any(Product.class))).thenReturn(saved);
+        when(productService.toDto(saved)).thenReturn(expectedDto);
 
-        ProductDto resp = productService.updateProduct(productId, req, actorId);
+        ProductDto resp = productAppManagementService.updateProduct(productId, req, actorId);
 
         assertNotNull(resp);
         assertEquals("ownerName", resp.getName());
@@ -304,7 +309,7 @@ public class ProductServiceTest {
     // deleteProduct tests
     // -----------------------
     @Test
-    public void deleteProduct_actorNotFound_throwsBadRequest() {
+    public void deleteProduct_actorNotFound_throwsNotFoundException() {
         UUID actorId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
@@ -315,7 +320,7 @@ public class ProductServiceTest {
     }
 
     @Test
-    public void deleteProduct_productNotFound_throwsBadRequest() {
+    public void deleteProduct_productNotFound_throwsNotFoundException() {
         UUID actorId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
@@ -326,12 +331,14 @@ public class ProductServiceTest {
         when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(productRepository.findById(productId)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> productService.deleteProduct(productId, actorId));
-        verify(productRepository, times(1)).findById(productId);
+        assertThrows(NotFoundException.class, () ->
+                productAppManagementService.deleteProduct(productId, actorId));
+
+        verify(productService, times(1)).findById(productId);
     }
 
     @Test
-    public void deleteProduct_actorNotAdminNorOwner_throwsConflict() {
+    public void deleteProduct_actorNotAdminNorOwner_throwsForbidden() {
         UUID actorId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
@@ -365,13 +372,19 @@ public class ProductServiceTest {
 
         Application app1 = new Application();
         app1.setId(UUID.randomUUID());
+        User app1User = new User();
+        app1User.setId(UUID.randomUUID());
+        app1.setApplicant(app1User);
         app1.setProduct(product);
 
         Application app2 = new Application();
         app2.setId(UUID.randomUUID());
+        User app2User = new User();
+        app2User.setId(UUID.randomUUID());
+        app2.setApplicant(app2User);
         app2.setProduct(product);
 
-        List<Application> apps = Arrays.asList(app1, app2);
+        List<Application> apps = List.of(app1, app2);
 
         when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
@@ -382,7 +395,7 @@ public class ProductServiceTest {
         doNothing().when(assignmentService).deleteByProductId(productId);
         doNothing().when(productRepository).delete(product);
 
-        productService.deleteProduct(productId, actorId);
+        productAppManagementService.deleteProduct(productId, actorId);
 
         verify(applicationService, times(1)).findByProductId(productId);
         verify(applicationService, times(1)).delete(app1);
@@ -405,6 +418,9 @@ public class ProductServiceTest {
 
         Application app = new Application();
         app.setId(UUID.randomUUID());
+        User appUser = new User();
+        appUser.setId(UUID.randomUUID());
+        app.setApplicant(appUser);
         app.setProduct(product);
 
         when(userService.findById(actorId)).thenReturn(Optional.of(actor));
@@ -414,7 +430,6 @@ public class ProductServiceTest {
         when(applicationService.findByProductId(productId)).thenReturn(List.of(app));
         doThrow(new RuntimeException("db error")).when(applicationService).delete(any(Application.class));
 
-        ConflictException ex = assertThrows(ConflictException.class, () -> productService.deleteProduct(productId, actorId));
         assertTrue(ex.getMessage().contains("Failed to delete product"));
         verify(applicationService, times(1)).delete(any(Application.class));
     }

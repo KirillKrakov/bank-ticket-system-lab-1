@@ -5,6 +5,7 @@ import com.example.bankticketsystem.dto.ProductRequest;
 import com.example.bankticketsystem.exception.*;
 import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.Product;
+import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.AssignmentRole;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.ProductRepository;
@@ -69,7 +70,7 @@ public class ProductService {
         return productRepository.findById(id).map(this::toDto).orElse(null);
     }
 
-    private ProductDto toDto(Product p) {
+    public ProductDto toDto(Product p) {
         ProductDto d = new ProductDto();
         d.setId(p.getId());
         d.setName(p.getName());
