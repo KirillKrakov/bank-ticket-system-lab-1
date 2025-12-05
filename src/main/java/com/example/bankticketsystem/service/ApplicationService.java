@@ -8,6 +8,7 @@ import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.*;
 import com.example.bankticketsystem.util.ApplicationPage;
 import com.example.bankticketsystem.util.CursorUtil;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,23 +22,21 @@ import java.util.stream.Collectors;
 public class ApplicationService {
 
     private final ApplicationRepository applicationRepository;
+    private final ApplicationHistoryRepository applicationHistoryRepository;
     private final UserService userService;
     private final ProductService productService;
-    private final ApplicationHistoryRepository historyRepository;
     private final TagService tagService;
-    private final ApplicationHistoryRepository applicationHistoryRepository;
 
     public ApplicationService(ApplicationRepository applicationRepository,
-                              UserService userService,
-                              ProductService productService, ApplicationHistoryRepository historyRepository,
-                              TagService tagService,
-                              ApplicationHistoryRepository applicationHistoryRepository) {
+                              ApplicationHistoryRepository applicationHistoryRepository,
+                              @Lazy UserService userService,
+                              @Lazy ProductService productService,
+                              TagService tagService) {
         this.applicationRepository = applicationRepository;
+        this.applicationHistoryRepository = applicationHistoryRepository;
         this.userService = userService;
         this.productService = productService;
-        this.historyRepository = historyRepository;
-        this.tagService = tagService;
-        this.applicationHistoryRepository = applicationHistoryRepository;
+        this.tagService =tagService;
     }
 
     List<Application> findByApplicantId(UUID applicantId){
@@ -55,8 +54,11 @@ public class ApplicationService {
             throw new BadRequestException("Applicant ID and Product ID must be in request body");
         }
 
-        User applicant = userService.findById(req.getApplicantId());
-        Product product = productService.findById(req.getProductId());
+        User applicant = userService.findById(req.getApplicantId())
+                .orElseThrow(() -> new NotFoundException("Applicant not found"));
+
+        Product product = productService.findById(req.getProductId())
+                .orElseThrow(() -> new NotFoundException("Product not found"));
 
         Application app = new Application();
         UUID applicationId = UUID.randomUUID();
@@ -88,7 +90,7 @@ public class ApplicationService {
         hist.setNewStatus(app.getStatus());
         hist.setChangedBy(applicant.getRole());
         hist.setChangedAt(Instant.now());
-        historyRepository.save(hist);
+        applicationHistoryRepository.save(hist);
 
         List<String> tagsReq = req.getTags() == null ? List.of() : req.getTags();
         attachTags(applicationId, tagsReq, req.getApplicantId());
@@ -163,7 +165,8 @@ public class ApplicationService {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
         }
-        User current = userService.findById(actorId);
+        User current = userService.findById(actorId)
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
         Application app = applicationRepository.findById(applicationId).orElseThrow(() -> new NotFoundException("Application not found"));
         if (!(app.getApplicant().getId().equals(current.getId()) || current.getRole() == UserRole.ROLE_ADMIN
@@ -172,7 +175,7 @@ public class ApplicationService {
         }
 
         for (String name : tagNames) {
-            Tag t = tagService.createIfNotExists(name);
+            Tag t = tagService.createTag(name);
             app.getTags().add(t);
         }
         applicationRepository.save(app);
@@ -182,7 +185,8 @@ public class ApplicationService {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
         }
-        User current = userService.findById(actorId);
+        User current = userService.findById(actorId)
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
         Application app = applicationRepository.findById(applicationId).orElseThrow(() -> new NotFoundException("Application not found"));
         if (!(app.getApplicant().getId().equals(current.getId()) || current.getRole() == UserRole.ROLE_ADMIN
@@ -201,7 +205,8 @@ public class ApplicationService {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
         }
-        User actor = userService.findById(actorId);
+        User actor = userService.findById(actorId)
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
         Application app = applicationRepository.findById(applicationId).
                 orElseThrow(() -> new NotFoundException("Application not found: " + applicationId));
@@ -254,7 +259,8 @@ public class ApplicationService {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
         }
-        User actor = userService.findById(actorId);
+        User actor = userService.findById(actorId)
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
         if (actor.getRole() != UserRole.ROLE_ADMIN) {
             throw new ForbiddenException("Only admin can delete applications");
@@ -275,7 +281,8 @@ public class ApplicationService {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
         }
-        User actor = userService.findById(actorId);
+        User actor = userService.findById(actorId)
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
         Application app = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new NotFoundException("Application not found: " + applicationId));
@@ -296,5 +303,17 @@ public class ApplicationService {
             dto.setChangedAt(h.getChangedAt());
             return dto;
         }).collect(Collectors.toList());
+    }
+
+    public List<Application> findByApplicantId(UUID applicantId) {
+        return applicationRepository.findByApplicantId(applicantId);
+    }
+
+    public List<Application> findByProductId(UUID productId) {
+        return applicationRepository.findByProductId(productId);
+    }
+
+    public void delete(Application a) {
+        applicationRepository.delete(a);
     }
 }

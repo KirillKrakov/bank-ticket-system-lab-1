@@ -5,10 +5,8 @@ import com.example.bankticketsystem.dto.DocumentDto;
 import com.example.bankticketsystem.dto.TagDto;
 import com.example.bankticketsystem.exception.NotFoundException;
 import com.example.bankticketsystem.model.entity.Application;
-import com.example.bankticketsystem.model.entity.Product;
 import com.example.bankticketsystem.model.entity.Tag;
 import com.example.bankticketsystem.repository.TagRepository;
-import io.swagger.v3.oas.annotations.tags.Tags;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -86,5 +84,9 @@ public class TagService {
         dto.setId(UUID.randomUUID());
         dto.setName(t.getName());
         return dto;
+    }
+
+    public Tag createTag(String name) {
+        return this.createIfNotExists(name);
     }
 }

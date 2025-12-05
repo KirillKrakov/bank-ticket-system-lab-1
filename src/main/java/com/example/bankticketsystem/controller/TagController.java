@@ -25,11 +25,9 @@ public class TagController {
 
     private static final int MAX_PAGE_SIZE = 50;
     private final TagService tagService;
-    private final ApplicationService applicationService;
 
-    public TagController(TagService tagService, ApplicationService applicationService) {
+    public TagController(TagService tagService) {
         this.tagService = tagService;
-        this.applicationService = applicationService;
     }
 
     // Create: POST "/api/v1/tags" + TagDto(name) (Body)

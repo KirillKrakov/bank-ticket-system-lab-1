@@ -4,6 +4,8 @@ import com.example.bankticketsystem.dto.UserDto;
 import com.example.bankticketsystem.dto.UserRequest;
 import com.example.bankticketsystem.exception.ConflictException;
 import com.example.bankticketsystem.exception.NotFoundException;
+import com.example.bankticketsystem.exception.UnauthorizedException;
+import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.ApplicationRepository;
@@ -31,6 +33,9 @@ class UserServiceTest {
 
     @Mock
     private ApplicationRepository applicationRepository;
+
+    @Mock
+    private ApplicationService applicationService;
 
     @InjectMocks
     private UserService userService;
@@ -219,9 +224,70 @@ class UserServiceTest {
         when(userRepository.findById(id)).thenReturn(Optional.of(existing));
         doNothing().when(userRepository).delete(existing);
 
-        userService.deleteUser(existing);
+        when(applicationService.findByApplicantId(id)).thenReturn(List.of());
+
+        userService.deleteUser(id, actorId);
+
+        verify(userRepository, times(1)).findById(actorId);
+        verify(userRepository, times(1)).findById(id);
+        verify(userRepository, times(1)).delete(existing);
+
+        verify(applicationService, times(1)).findByApplicantId(id);
+        verify(applicationService, times(0)).delete(any(Application.class));
+    }
+
+    @Test
+    void deleteUserWithApplicationsSuccessDeletesAll() {
+        UUID id = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        User actor = new User();
+        actor.setId(actorId);
+        actor.setRole(UserRole.ROLE_ADMIN);
+
+        User existing = new User();
+        existing.setId(id);
+        existing.setUsername("toDelete");
+
+        Application app1 = new Application();
+        app1.setId(UUID.randomUUID());
+        Application app2 = new Application();
+        app2.setId(UUID.randomUUID());
+
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
+        when(userRepository.findById(id)).thenReturn(Optional.of(existing));
+        doNothing().when(userRepository).delete(existing);
+
+        when(applicationService.findByApplicantId(id)).thenReturn(List.of(app1, app2));
+        doNothing().when(applicationService).delete(any(Application.class));
+
+        userService.deleteUser(id, actorId);
 
         verify(userRepository, times(1)).delete(existing);
+
+        verify(applicationService, times(1)).findByApplicantId(id);
+        verify(applicationService, times(1)).delete(app1);
+        verify(applicationService, times(1)).delete(app2);
+    }
+
+    @Test
+    void deleteUserNotFoundThrowsBadRequest() {
+        UUID id = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        User actor = new User();
+        actor.setId(actorId);
+        actor.setRole(UserRole.ROLE_ADMIN);
+
+        when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
+        when(userRepository.findById(id)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> userService.deleteUser(id, actorId));
+        verify(userRepository, times(1)).findById(actorId);
+        verify(userRepository, times(1)).findById(id);
+        verify(userRepository, never()).delete(any());
+
+        verify(applicationService, never()).findByApplicantId(any());
     }
 
     // -----------------------

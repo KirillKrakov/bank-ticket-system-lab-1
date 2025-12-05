@@ -6,33 +6,27 @@ import com.example.bankticketsystem.exception.*;
 import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.UserRole;
-import com.example.bankticketsystem.repository.ApplicationRepository;
 import com.example.bankticketsystem.repository.UserRepository;
 import com.password4j.Password;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.*;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
+    private final ApplicationService applicationService;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, @Lazy ApplicationService applicationService) {
         this.userRepository = userRepository;
-    }
-
-    public User findById(UUID userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
-    }
-
-    public void deleteUser(User user) {
-        userRepository.delete(user);
+        this.applicationService = applicationService;
     }
 
     public UserDto create(UserRequest req) {
@@ -106,6 +100,31 @@ public class UserService {
         return toDto(existing);
     }
 
+    @Transactional
+    public void deleteUser(UUID userId, UUID actorId) {
+        if (actorId == null) {
+            throw new UnauthorizedException("You must specify the actorId to authorize in this request");
+        }
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
+        if (actor.getRole() != UserRole.ROLE_ADMIN) {
+            throw new ForbiddenException("Only ADMIN can delete users");
+        }
+
+        User existing = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
+
+        try {
+            List<Application> apps = applicationService.findByApplicantId(userId);
+            for (Application a : apps) {
+                applicationService.delete(a);
+            }
+            userRepository.delete(existing);
+        } catch (Exception ex) {
+            throw new ConflictException("Failed to delete user and its applications: " + ex.getMessage());
+        }
+    }
+
     public void promoteToManager(UUID id, UUID actorId) {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
@@ -138,5 +157,9 @@ public class UserService {
         if (u.getRole() == UserRole.ROLE_CLIENT) return;
         u.setRole(UserRole.ROLE_CLIENT);
         userRepository.save(u);
+    }
+
+    public Optional<User> findById(UUID id) {
+        return userRepository.findById(id);
     }
 }

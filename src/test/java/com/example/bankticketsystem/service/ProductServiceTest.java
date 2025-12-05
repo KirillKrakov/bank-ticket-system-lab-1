@@ -11,6 +11,7 @@ import com.example.bankticketsystem.model.entity.Product;
 import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.AssignmentRole;
 import com.example.bankticketsystem.model.enums.UserRole;
+import com.example.bankticketsystem.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -25,13 +26,13 @@ import static org.mockito.Mockito.*;
 public class ProductServiceTest {
 
     @Mock
-    private ProductService productService;
-
-    @Mock
-    private ApplicationService applicationService;
+    private ProductRepository productRepository;
 
     @Mock
     private UserService userService;
+
+    @Mock
+    private ApplicationService applicationService;
 
     @Mock
     private UserProductAssignmentService assignmentService;
@@ -41,9 +42,128 @@ public class ProductServiceTest {
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        productAppManagementService = new ProductAppManagementService(
-                productService, applicationService, userService, assignmentService
-        );
+        productService = new ProductService(productRepository, userService, applicationService, assignmentService);
+    }
+
+    // -----------------------
+    // createProduct tests
+    // -----------------------
+    @Test
+    public void create_nullRequest_throwsBadRequest() {
+        assertThrows(BadRequestException.class, () -> productService.create(null));
+        verifyNoInteractions(productRepository);
+    }
+
+    @Test
+    public void create_missingName_throwsBadRequest() {
+        ProductRequest req = new ProductRequest();
+        req.setDescription("desc");
+        assertThrows(BadRequestException.class, () -> productService.create(req));
+        verifyNoInteractions(productRepository);
+    }
+
+    @Test
+    public void create_missingDescription_throwsBadRequest() {
+        ProductRequest req = new ProductRequest();
+        req.setName("name");
+        assertThrows(BadRequestException.class, () -> productService.create(req));
+        verifyNoInteractions(productRepository);
+    }
+
+    @Test
+    public void create_nameAlreadyExists_throwsConflict() {
+        ProductRequest req = new ProductRequest();
+        req.setName("product");
+        req.setDescription("desc");
+
+        when(productRepository.existsByName("product")).thenReturn(true);
+
+        assertThrows(ConflictException.class, () -> productService.create(req));
+
+        verify(productRepository, times(1)).existsByName("product");
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    public void create_success_returnsDto() {
+        ProductRequest req = new ProductRequest();
+        req.setName("product");
+        req.setDescription("desc");
+
+        Product saved = new Product();
+        UUID id = UUID.randomUUID();
+        saved.setId(id);
+        saved.setName("product");
+        saved.setDescription("desc");
+
+        when(productRepository.existsByName("product")).thenReturn(false);
+        when(productRepository.save(any(Product.class))).thenReturn(saved);
+
+        ProductDto resp = productService.create(req);
+
+        assertNotNull(resp);
+        assertEquals(id, resp.getId());
+        assertEquals("product", resp.getName());
+        assertEquals("desc", resp.getDescription());
+
+        verify(productRepository, times(1)).existsByName("product");
+        verify(productRepository, times(1)).save(any(Product.class));
+    }
+
+    // -----------------------
+    // readAllProducts tests
+    // -----------------------
+    @Test
+    public void list_returnsPagedDto() {
+        Product p1 = new Product();
+        p1.setId(UUID.randomUUID());
+        p1.setName("p1");
+        p1.setDescription("d1");
+
+        Product p2 = new Product();
+        p2.setId(UUID.randomUUID());
+        p2.setName("p2");
+        p2.setDescription("d2");
+
+        List<Product> list = List.of(p1, p2);
+        Page<Product> page = new PageImpl<>(list);
+
+        when(productRepository.findAll(PageRequest.of(0, 10))).thenReturn(page);
+
+        Page<ProductDto> resp = productService.list(0, 10);
+
+        assertEquals(2, resp.getTotalElements());
+        assertEquals("p1", resp.getContent().get(0).getName());
+        verify(productRepository, times(1)).findAll(PageRequest.of(0, 10));
+    }
+
+    // -----------------------
+    // getProduct tests
+    // -----------------------
+    @Test
+    public void get_whenNotFound_returnsNull() {
+        UUID id = UUID.randomUUID();
+        when(productRepository.findById(id)).thenReturn(Optional.empty());
+
+        ProductDto resp = productService.get(id);
+        assertNull(resp);
+        verify(productRepository, times(1)).findById(id);
+    }
+
+    @Test
+    public void get_whenFound_returnsDto() {
+        UUID id = UUID.randomUUID();
+        Product p = new Product();
+        p.setId(id);
+        p.setName("name");
+        p.setDescription("desc");
+
+        when(productRepository.findById(id)).thenReturn(Optional.of(p));
+
+        ProductDto resp = productService.get(id);
+        assertNotNull(resp);
+        assertEquals(id, resp.getId());
+        assertEquals("name", resp.getName());
     }
 
     // -----------------------
@@ -60,11 +180,9 @@ public class ProductServiceTest {
         UUID actorId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
-        when(userService.findById(actorId)).thenThrow(new NotFoundException("User not found"));
+        when(userService.findById(actorId)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () ->
-                productAppManagementService.updateProduct(productId, new ProductRequest(), actorId));
-
+        assertThrows(NotFoundException.class, () -> productService.updateProduct(productId, new ProductRequest(), actorId));
         verify(userService, times(1)).findById(actorId);
     }
 
@@ -77,11 +195,8 @@ public class ProductServiceTest {
         actor.setId(actorId);
         actor.setRole(UserRole.ROLE_ADMIN);
 
-        when(userService.findById(actorId)).thenReturn(actor);
-        when(productService.findById(productId)).thenThrow(new NotFoundException("Product not found"));
-
-        assertThrows(NotFoundException.class, () ->
-                productAppManagementService.updateProduct(productId, new ProductRequest(), actorId));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(productRepository.findById(productId)).thenReturn(Optional.empty());
 
         verify(productService, times(1)).findById(productId);
     }
@@ -98,13 +213,13 @@ public class ProductServiceTest {
         Product product = new Product();
         product.setId(productId);
 
-        when(userService.findById(actorId)).thenReturn(actor);
-        when(productService.findById(productId)).thenReturn(product);
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(assignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
                 .thenReturn(false);
 
-        assertThrows(ForbiddenException.class, () ->
-                productAppManagementService.updateProduct(productId, new ProductRequest(), actorId));
+        assertThrows(ForbiddenException.class, () -> productService.updateProduct(productId, new ProductRequest(), actorId));
+        verify(assignmentService, times(1)).existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
     }
 
     @Test
@@ -130,10 +245,11 @@ public class ProductServiceTest {
         saved.setName("newName");
         saved.setDescription("newDesc");
 
-        ProductDto expectedDto = new ProductDto();
-        expectedDto.setId(productId);
-        expectedDto.setName("newName");
-        expectedDto.setDescription("newDesc");
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+        when(assignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
+                .thenReturn(false);
+        when(productRepository.save(any(Product.class))).thenReturn(saved);
 
         when(userService.findById(actorId)).thenReturn(actor);
         when(productService.findById(productId)).thenReturn(existing);
@@ -147,7 +263,8 @@ public class ProductServiceTest {
         assertNotNull(resp);
         assertEquals("newName", resp.getName());
         assertEquals("newDesc", resp.getDescription());
-        verify(productService, times(1)).save(any(Product.class));
+        verify(productRepository, times(1)).save(any(Product.class));
+        verify(assignmentService, times(1)).existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
     }
 
     @Test
@@ -173,13 +290,8 @@ public class ProductServiceTest {
         saved.setName("ownerName");
         saved.setDescription("ownerDesc");
 
-        ProductDto expectedDto = new ProductDto();
-        expectedDto.setId(productId);
-        expectedDto.setName("ownerName");
-        expectedDto.setDescription("ownerDesc");
-
-        when(userService.findById(actorId)).thenReturn(actor);
-        when(productService.findById(productId)).thenReturn(existing);
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
         when(assignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
                 .thenReturn(true);
         when(productService.save(any(Product.class))).thenReturn(saved);
@@ -189,7 +301,8 @@ public class ProductServiceTest {
 
         assertNotNull(resp);
         assertEquals("ownerName", resp.getName());
-        verify(productService, times(1)).save(any(Product.class));
+        verify(productRepository, times(1)).save(any(Product.class));
+        verify(assignmentService, times(1)).existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
     }
 
     // -----------------------
@@ -200,11 +313,9 @@ public class ProductServiceTest {
         UUID actorId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
-        when(userService.findById(actorId)).thenThrow(new NotFoundException("User not found"));
+        when(userService.findById(actorId)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () ->
-                productAppManagementService.deleteProduct(productId, actorId));
-
+        assertThrows(NotFoundException.class, () -> productService.deleteProduct(productId, actorId));
         verify(userService, times(1)).findById(actorId);
     }
 
@@ -217,8 +328,8 @@ public class ProductServiceTest {
         actor.setId(actorId);
         actor.setRole(UserRole.ROLE_ADMIN);
 
-        when(userService.findById(actorId)).thenReturn(actor);
-        when(productService.findById(productId)).thenThrow(new NotFoundException("Product not found"));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(productRepository.findById(productId)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () ->
                 productAppManagementService.deleteProduct(productId, actorId));
@@ -238,13 +349,13 @@ public class ProductServiceTest {
         Product product = new Product();
         product.setId(productId);
 
-        when(userService.findById(actorId)).thenReturn(actor);
-        when(productService.findById(productId)).thenReturn(product);
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(assignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
                 .thenReturn(false);
 
-        assertThrows(ForbiddenException.class, () ->
-                productAppManagementService.deleteProduct(productId, actorId));
+        assertThrows(ForbiddenException.class, () -> productService.deleteProduct(productId, actorId));
+        verify(assignmentService, times(1)).existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
     }
 
     @Test
@@ -275,21 +386,22 @@ public class ProductServiceTest {
 
         List<Application> apps = List.of(app1, app2);
 
-        when(userService.findById(actorId)).thenReturn(actor);
-        when(productService.findById(productId)).thenReturn(product);
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(assignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
-                .thenReturn(false); // admin is enough
+                .thenReturn(false);
         when(applicationService.findByProductId(productId)).thenReturn(apps);
-
-        doNothing().when(applicationService).deleteApplication(any(UUID.class), any(UUID.class));
+        doNothing().when(applicationService).delete(any(Application.class));
         doNothing().when(assignmentService).deleteByProductId(productId);
-        doNothing().when(productService).delete(product);
+        doNothing().when(productRepository).delete(product);
 
         productAppManagementService.deleteProduct(productId, actorId);
 
-        verify(applicationService, times(apps.size())).deleteApplication(any(UUID.class), any(UUID.class));
+        verify(applicationService, times(1)).findByProductId(productId);
+        verify(applicationService, times(1)).delete(app1);
+        verify(applicationService, times(1)).delete(app2);
         verify(assignmentService, times(1)).deleteByProductId(productId);
-        verify(productService, times(1)).delete(product);
+        verify(productRepository, times(1)).delete(product);
     }
 
     @Test
@@ -311,16 +423,14 @@ public class ProductServiceTest {
         app.setApplicant(appUser);
         app.setProduct(product);
 
-        when(userService.findById(actorId)).thenReturn(actor);
-        when(productService.findById(productId)).thenReturn(product);
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(assignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
+                .thenReturn(false);
         when(applicationService.findByProductId(productId)).thenReturn(List.of(app));
-
-        doThrow(new RuntimeException("db error")).when(applicationService)
-                .deleteApplication(any(UUID.class), any(UUID.class));
-
-        ConflictException ex = assertThrows(ConflictException.class, () ->
-                productAppManagementService.deleteProduct(productId, actorId));
+        doThrow(new RuntimeException("db error")).when(applicationService).delete(any(Application.class));
 
         assertTrue(ex.getMessage().contains("Failed to delete product"));
+        verify(applicationService, times(1)).delete(any(Application.class));
     }
 }

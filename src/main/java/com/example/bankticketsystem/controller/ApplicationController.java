@@ -4,7 +4,6 @@ import com.example.bankticketsystem.dto.ApplicationDto;
 import com.example.bankticketsystem.dto.ApplicationHistoryDto;
 import com.example.bankticketsystem.dto.ApplicationRequest;
 import com.example.bankticketsystem.exception.BadRequestException;
-import com.example.bankticketsystem.repository.UserRepository;
 import com.example.bankticketsystem.util.ApplicationPage;
 import com.example.bankticketsystem.service.ApplicationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,13 +34,12 @@ public class ApplicationController {
         this.applicationService = applicationService;
     }
 
-    // Create: POST "/api/v1/applications" + ApplicationDto(applicantId,productId,documents(fileName,contentType,storagePath)) (Body)
+    // Create: POST "/api/v1/applications" + ApplicationRequest(applicantId,productId,documents(fileName,contentType,storagePath)) (Body)
     @Operation(summary = "Create a new application", description = "Registers a new application: applicantId, productId, documents " +
             "(fileName, contentType, storagePath), tags ([name,...])")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Application created successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid request body"),
-            @ApiResponse(responseCode = "403", description = "Forbidden input data: application ID, creation time, application status"),
             @ApiResponse(responseCode = "404", description = "Applicant or product with their ID are not found")
     })
     @PostMapping

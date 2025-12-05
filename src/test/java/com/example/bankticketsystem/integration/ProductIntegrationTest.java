@@ -1,6 +1,7 @@
 package com.example.bankticketsystem.integration;
 
 import com.example.bankticketsystem.dto.ProductDto;
+import com.example.bankticketsystem.dto.ProductRequest;
 import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.UserRepository;
@@ -8,7 +9,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.*;
 
 import org.testcontainers.junit.jupiter.Container;
@@ -22,6 +26,8 @@ import java.time.Instant;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -47,6 +53,55 @@ public class ProductIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        @Primary
+        public com.example.bankticketsystem.service.UserService userService() {
+            com.example.bankticketsystem.service.UserService mock =
+                    mock(com.example.bankticketsystem.service.UserService.class);
+            // Настраиваем мок для возврата пользователя по ID
+            when(mock.findById(any(UUID.class))).thenAnswer(invocation -> {
+                UUID id = invocation.getArgument(0);
+                com.example.bankticketsystem.model.entity.User user =
+                        new com.example.bankticketsystem.model.entity.User();
+                user.setId(id);
+                user.setRole(UserRole.ROLE_ADMIN); // Для тестов всегда возвращаем ADMIN
+                return Optional.of(user);
+            });
+            return mock;
+        }
+
+        @Bean
+        @Primary
+        public com.example.bankticketsystem.service.ApplicationService applicationService() {
+            com.example.bankticketsystem.service.ApplicationService mock =
+                    mock(com.example.bankticketsystem.service.ApplicationService.class);
+            // Настраиваем мок для возврата пустого списка заявок
+            when(mock.findByProductId(any(UUID.class))).thenReturn(List.of());
+            doNothing().when(mock).delete(any(com.example.bankticketsystem.model.entity.Application.class));
+            return mock;
+        }
+
+        @Bean
+        @Primary
+        public com.example.bankticketsystem.service.UserProductAssignmentService userProductAssignmentService() {
+            com.example.bankticketsystem.service.UserProductAssignmentService mock =
+                    mock(com.example.bankticketsystem.service.UserProductAssignmentService.class);
+            // Настраиваем мок для проверки прав доступа
+            when(mock.existsByUserIdAndProductIdAndRoleOnProduct(any(), any(), any()))
+                    .thenReturn(true); // Для тестов всегда возвращаем true (является владельцем)
+            doNothing().when(mock).deleteByProductId(any(UUID.class));
+            return mock;
+        }
+
+        @Bean
+        @Primary
+        public com.example.bankticketsystem.service.TagService tagService() {
+            return mock(com.example.bankticketsystem.service.TagService.class);
+        }
+    }
 
     @BeforeEach
     public void cleanDb() {

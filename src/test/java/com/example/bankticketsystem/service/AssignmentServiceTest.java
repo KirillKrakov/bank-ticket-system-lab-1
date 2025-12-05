@@ -38,6 +38,7 @@ public class AssignmentServiceTest {
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
+        svc = new UserProductAssignmentService(repo, userService, productService);
     }
 
     // -----------------------
@@ -53,12 +54,15 @@ public class AssignmentServiceTest {
         User user = new User(); user.setId(userId);
         Product product = new Product(); product.setId(productId);
 
-        when(userService.findById(userId)).thenReturn(user);
-        when(productService.findById(productId)).thenReturn(product);
-        when(userService.findById(actorId)).thenReturn(actor);
+        // repo mocks
         when(repo.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER)).thenReturn(false);
         when(repo.findByUserIdAndProductId(userId, productId)).thenReturn(Optional.empty());
         when(repo.save(any(UserProductAssignment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // service mocks
+        when(userService.findById(userId)).thenReturn(Optional.of(user));
+        when(productService.findById(productId)).thenReturn(Optional.of(product));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
 
         UserProductAssignment saved = svc.assign(actorId, userId, productId, AssignmentRole.PRODUCT_OWNER);
 
@@ -75,7 +79,7 @@ public class AssignmentServiceTest {
         UUID userId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
-        User actor = new User(); actor.setId(actorId); actor.setRole(UserRole.ROLE_CLIENT);
+        User actor = new User(); actor.setId(actorId); actor.setRole(UserRole.ROLE_CLIENT); // not admin
         User user = new User(); user.setId(userId);
         Product product = new Product(); product.setId(productId);
 
@@ -88,12 +92,13 @@ public class AssignmentServiceTest {
 
         Instant oldAssignedAt = existing.getAssignedAt();
 
-        when(userService.findById(userId)).thenReturn(user);
-        when(productService.findById(productId)).thenReturn(product);
-        when(userService.findById(actorId)).thenReturn(actor);
         when(repo.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER)).thenReturn(true);
         when(repo.findByUserIdAndProductId(userId, productId)).thenReturn(Optional.of(existing));
         when(repo.save(any(UserProductAssignment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        when(userService.findById(userId)).thenReturn(Optional.of(user));
+        when(productService.findById(productId)).thenReturn(Optional.of(product));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
 
         UserProductAssignment result = svc.assign(actorId, userId, productId, AssignmentRole.PRODUCT_OWNER);
 
@@ -114,14 +119,55 @@ public class AssignmentServiceTest {
         User user = new User(); user.setId(userId);
         Product product = new Product(); product.setId(productId);
 
-        when(userService.findById(userId)).thenReturn(user);
-        when(productService.findById(productId)).thenReturn(product);
-        when(userService.findById(actorId)).thenReturn(actor);
         when(repo.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER)).thenReturn(false);
+
+        when(userService.findById(userId)).thenReturn(Optional.of(user));
+        when(productService.findById(productId)).thenReturn(Optional.of(product));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
 
         assertThrows(ForbiddenException.class, () -> svc.assign(actorId, userId, productId, AssignmentRole.PRODUCT_OWNER));
 
         verify(repo, never()).save(any());
+    }
+
+    @Test
+    public void assign_throwsNotFound_whenUserMissing() {
+        UUID actorId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+
+        when(userService.findById(userId)).thenReturn(Optional.empty());
+        assertThrows(NotFoundException.class, () -> svc.assign(actorId, userId, productId, AssignmentRole.PRODUCT_OWNER));
+    }
+
+    @Test
+    public void assign_throwsNotFound_whenProductMissing() {
+        UUID actorId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+
+        User user = new User(); user.setId(userId);
+
+        when(userService.findById(userId)).thenReturn(Optional.of(user));
+        when(productService.findById(productId)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> svc.assign(actorId, userId, productId, AssignmentRole.PRODUCT_OWNER));
+    }
+
+    @Test
+    public void assign_throwsBadRequest_whenActorMissing() {
+        UUID actorId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+
+        User user = new User(); user.setId(userId);
+        Product product = new Product(); product.setId(productId);
+
+        when(userService.findById(userId)).thenReturn(Optional.of(user));
+        when(productService.findById(productId)).thenReturn(Optional.of(product));
+        when(userService.findById(actorId)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> svc.assign(actorId, userId, productId, AssignmentRole.PRODUCT_OWNER));
     }
 
     // -----------------------
@@ -202,7 +248,7 @@ public class AssignmentServiceTest {
     @Test
     public void deleteAssignments_throwsNotFound_whenActorMissing() {
         UUID actorId = UUID.randomUUID();
-        when(userService.findById(actorId)).thenThrow(new NotFoundException("actor not found"));
+        when(userService.findById(actorId)).thenReturn(Optional.empty());
         assertThrows(NotFoundException.class, () -> svc.deleteAssignments(actorId, null, null));
     }
 
@@ -210,7 +256,7 @@ public class AssignmentServiceTest {
     public void deleteAssignments_throwsForbidden_whenActorNotAdmin() {
         UUID actorId = UUID.randomUUID();
         User actor = new User(); actor.setId(actorId); actor.setRole(UserRole.ROLE_CLIENT);
-        when(userService.findById(actorId)).thenReturn(actor);
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         assertThrows(ForbiddenException.class, () -> svc.deleteAssignments(actorId, null, null));
     }
 
@@ -224,12 +270,11 @@ public class AssignmentServiceTest {
         User user = new User(); user.setId(userId);
         Product product = new Product(); product.setId(productId);
 
-        when(userService.findById(actorId)).thenReturn(admin);
-        when(userService.findById(userId)).thenReturn(user);
-        when(productService.findById(productId)).thenReturn(product);
+        when(userService.findById(actorId)).thenReturn(Optional.of(admin));
+        when(userService.findById(userId)).thenReturn(Optional.of(user));
+        when(productService.findById(productId)).thenReturn(Optional.of(product));
 
-        doNothing().when(repo).deleteByUserIdAndProductId(userId, productId);
-
+        // execute
         svc.deleteAssignments(actorId, userId, productId);
 
         verify(repo, times(1)).deleteByUserIdAndProductId(userId, productId);
@@ -243,8 +288,8 @@ public class AssignmentServiceTest {
         User admin = new User(); admin.setId(actorId); admin.setRole(UserRole.ROLE_ADMIN);
         User user = new User(); user.setId(userId);
 
-        when(userService.findById(actorId)).thenReturn(admin);
-        when(userService.findById(userId)).thenReturn(user);
+        when(userService.findById(actorId)).thenReturn(Optional.of(admin));
+        when(userService.findById(userId)).thenReturn(Optional.of(user));
 
         doNothing().when(repo).deleteByUserId(userId);
 
@@ -261,8 +306,8 @@ public class AssignmentServiceTest {
         User admin = new User(); admin.setId(actorId); admin.setRole(UserRole.ROLE_ADMIN);
         Product product = new Product(); product.setId(productId);
 
-        when(userService.findById(actorId)).thenReturn(admin);
-        when(productService.findById(productId)).thenReturn(product);
+        when(userService.findById(actorId)).thenReturn(Optional.of(admin));
+        when(productService.findById(productId)).thenReturn(Optional.of(product));
 
         doNothing().when(repo).deleteByProductId(productId);
 
@@ -275,13 +320,51 @@ public class AssignmentServiceTest {
     public void deleteAssignments_deleteAll_callsRepository_whenNoIdsProvided() {
         UUID actorId = UUID.randomUUID();
         User admin = new User(); admin.setId(actorId); admin.setRole(UserRole.ROLE_ADMIN);
-        when(userService.findById(actorId)).thenReturn(admin);
+        when(userService.findById(actorId)).thenReturn(Optional.of(admin));
 
         doNothing().when(repo).deleteAll();
 
         svc.deleteAssignments(actorId, null, null);
 
         verify(repo, times(1)).deleteAll();
+    }
+
+    @Test
+    public void deleteAssignments_throwsNotFound_whenUserNotFound_forUserDelete() {
+        UUID actorId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        User admin = new User(); admin.setId(actorId); admin.setRole(UserRole.ROLE_ADMIN);
+
+        when(userService.findById(actorId)).thenReturn(Optional.of(admin));
+        when(userService.findById(userId)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> svc.deleteAssignments(actorId, userId, null));
+    }
+
+    @Test
+    public void deleteAssignments_throwsNotFound_whenProductNotFound_forProductDelete() {
+        UUID actorId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        User admin = new User(); admin.setId(actorId); admin.setRole(UserRole.ROLE_ADMIN);
+
+        when(userService.findById(actorId)).thenReturn(Optional.of(admin));
+        when(productService.findById(productId)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> svc.deleteAssignments(actorId, null, productId));
+    }
+
+    @Test
+    public void deleteAssignments_throwsNotFound_whenUserOrProductNotFound_forBothProvided() {
+        UUID actorId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        User admin = new User(); admin.setId(actorId); admin.setRole(UserRole.ROLE_ADMIN);
+
+        when(userService.findById(actorId)).thenReturn(Optional.of(admin));
+        when(userService.findById(userId)).thenReturn(Optional.empty());
+        when(productService.findById(productId)).thenReturn(Optional.of(new Product()));
+
+        assertThrows(NotFoundException.class, () -> svc.deleteAssignments(actorId, userId, productId));
     }
 
     // -----------------------
@@ -305,5 +388,50 @@ public class AssignmentServiceTest {
         assertEquals(p.getId(), dto.getProductId());
         assertEquals(a.getRoleOnProduct(), dto.getRole());
         assertEquals(a.getAssignedAt(), dto.getAssignedAt());
+    }
+
+    // -----------------------
+    // existsByUserIdAndProductIdAndRoleOnProduct tests
+    // -----------------------
+    @Test
+    public void existsByUserIdAndProductIdAndRoleOnProduct_returnsTrue_whenAssignmentExists() {
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        AssignmentRole role = AssignmentRole.PRODUCT_OWNER;
+
+        when(repo.existsByUserIdAndProductIdAndRoleOnProduct(userId, productId, role)).thenReturn(true);
+
+        boolean exists = svc.existsByUserIdAndProductIdAndRoleOnProduct(userId, productId, role);
+
+        assertTrue(exists);
+        verify(repo, times(1)).existsByUserIdAndProductIdAndRoleOnProduct(userId, productId, role);
+    }
+
+    @Test
+    public void existsByUserIdAndProductIdAndRoleOnProduct_returnsFalse_whenAssignmentDoesNotExist() {
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        AssignmentRole role = AssignmentRole.PRODUCT_OWNER;
+
+        when(repo.existsByUserIdAndProductIdAndRoleOnProduct(userId, productId, role)).thenReturn(false);
+
+        boolean exists = svc.existsByUserIdAndProductIdAndRoleOnProduct(userId, productId, role);
+
+        assertFalse(exists);
+        verify(repo, times(1)).existsByUserIdAndProductIdAndRoleOnProduct(userId, productId, role);
+    }
+
+    // -----------------------
+    // deleteByProductId tests
+    // -----------------------
+    @Test
+    public void deleteByProductId_callsRepositoryDelete() {
+        UUID productId = UUID.randomUUID();
+
+        doNothing().when(repo).deleteByProductId(productId);
+
+        svc.deleteByProductId(productId);
+
+        verify(repo, times(1)).deleteByProductId(productId);
     }
 }

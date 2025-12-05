@@ -9,33 +9,31 @@ import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.AssignmentRole;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.ProductRepository;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.*;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final UserService userService;
+    private final ApplicationService applicationService;
+    private final UserProductAssignmentService assignmentService;
 
-    public ProductService(ProductRepository productRepository) {
+    public ProductService(ProductRepository productRepository,
+                          @Lazy UserService userService,
+                          @Lazy ApplicationService applicationService,
+                          @Lazy UserProductAssignmentService assignmentService) {
         this.productRepository = productRepository;
-    }
-
-    public Product findById(UUID productId) {
-        return productRepository.findById(productId)
-                .orElseThrow(() -> new NotFoundException("Product not found"));
-    }
-
-    public Product save(Product product){
-        return productRepository.save(product);
-    }
-
-    public void delete(Product product) {
-        productRepository.delete(product);
+        this.userService = userService;
+        this.applicationService = applicationService;
+        this.assignmentService = assignmentService;
     }
 
     public ProductDto create(ProductRequest req) {
@@ -80,5 +78,64 @@ public class ProductService {
         return d;
     }
 
+    public ProductDto updateProduct(UUID productId, ProductRequest req, UUID actorId) {
+        if (req == null) throw new BadRequestException("Request is required");
 
+        if (actorId == null) {
+            throw new UnauthorizedException("You must specify the actorId to authorize in this request");
+        }
+        var actor = userService.findById(actorId)
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new NotFoundException("Product not found: " + productId));
+
+        boolean isAdmin = actor.getRole() == UserRole.ROLE_ADMIN;
+        boolean isOwner = assignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
+
+        if (!isAdmin && !isOwner) {
+            throw new ForbiddenException("Only ADMIN or PRODUCT_OWNER can update product");
+        }
+
+        if (req.getName() != null) product.setName(req.getName());
+        if (req.getDescription() != null) product.setDescription(req.getDescription());
+        Product saved = productRepository.save(product);
+        return toDto(saved);
+    }
+
+    @Transactional
+    public void deleteProduct(UUID productId, UUID actorId) {
+        if (actorId == null) {
+            throw new UnauthorizedException("You must specify the actorId to authorize in this request");
+        }
+        var actor = userService.findById(actorId)
+                .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new NotFoundException("Product not found: " + productId));
+
+        boolean isAdmin = actor.getRole() == UserRole.ROLE_ADMIN;
+        boolean isOwner = assignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
+
+        if (!isAdmin && !isOwner) {
+            throw new ForbiddenException("Only ADMIN or PRODUCT_OWNER can delete product");
+        }
+
+        try {
+            List<Application> apps = applicationService.findByProductId(productId);
+            for (Application a : apps) {
+                applicationService.delete(a);
+            }
+
+            assignmentService.deleteByProductId(productId);
+
+            productRepository.delete(product);
+        } catch (Exception ex) {
+            throw new ConflictException("Failed to delete product and its applications: " + ex.getMessage());
+        }
+    }
+
+    public Optional<Product> findById(UUID id) {
+        return productRepository.findById(id);
+    }
 }

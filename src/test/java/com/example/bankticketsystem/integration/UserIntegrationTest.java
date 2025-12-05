@@ -1,14 +1,19 @@
 package com.example.bankticketsystem.integration;
 
 import com.example.bankticketsystem.dto.UserDto;
+import com.example.bankticketsystem.dto.UserRequest;
 import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.*;
 
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -24,6 +29,8 @@ import java.util.Objects;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -48,6 +55,38 @@ public class UserIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        @Primary
+        public com.example.bankticketsystem.service.ApplicationService applicationService() {
+            com.example.bankticketsystem.service.ApplicationService mock =
+                    mock(com.example.bankticketsystem.service.ApplicationService.class);
+            // Настраиваем мок для успешного удаления пользователя
+            when(mock.findByApplicantId(any())).thenReturn(List.of());
+            doNothing().when(mock).delete(any());
+            return mock;
+        }
+
+        @Bean
+        @Primary
+        public com.example.bankticketsystem.service.ProductService productService() {
+            return mock(com.example.bankticketsystem.service.ProductService.class);
+        }
+
+        @Bean
+        @Primary
+        public com.example.bankticketsystem.service.TagService tagService() {
+            return mock(com.example.bankticketsystem.service.TagService.class);
+        }
+
+        @Bean
+        @Primary
+        public com.example.bankticketsystem.service.UserProductAssignmentService userProductAssignmentService() {
+            return mock(com.example.bankticketsystem.service.UserProductAssignmentService.class);
+        }
+    }
+
     @BeforeEach
     void cleanDb() {
         userRepository.deleteAll();
@@ -56,7 +95,7 @@ public class UserIntegrationTest {
     @Test
     public void fullLifecycle_withAdminActor() {
         // 1) create a normal user via POST
-        UserDto createReq = new UserDto();
+        UserRequest createReq = new UserRequest();
         createReq.setUsername("targetUser");
         createReq.setEmail("target@example.com");
         createReq.setPassword("targetPass123");
@@ -81,25 +120,25 @@ public class UserIntegrationTest {
 
         // 2) create an admin actor directly in DB (assign id and required fields)
         User admin = new User();
-        admin.setId(UUID.randomUUID()); // <-- обязательно назначаем id вручную
+        admin.setId(UUID.randomUUID());
         admin.setUsername("adminActor");
         admin.setEmail("admin@example.com");
-        admin.setPasswordHash("adminpass"); // not used by controller but DB requires non-null
+        admin.setPasswordHash("$2a$10$someHashForAdmin"); // bcrypt hash for testing
         admin.setRole(UserRole.ROLE_ADMIN);
-        admin.setCreatedAt(Instant.now()); // обязательное поле
+        admin.setCreatedAt(Instant.now());
         User savedAdmin = userRepository.save(admin);
         UUID adminId = savedAdmin.getId();
         assertNotNull(adminId);
 
         // 3) update the target user using admin actor (PUT /api/v1/users/{id}?actorId=...)
-        UserDto updateReq = new UserDto();
+        UserRequest updateReq = new UserRequest();
         updateReq.setUsername("updatedUser");
         updateReq.setEmail("updated@example.com");
         updateReq.setPassword("newpass123");
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<UserDto> updateEntity = new HttpEntity<>(updateReq, headers);
+        HttpEntity<UserRequest> updateEntity = new HttpEntity<>(updateReq, headers);
 
         ResponseEntity<UserDto> updateResp = rest.exchange(
                 "/api/v1/users/" + targetId + "?actorId=" + adminId,
@@ -112,7 +151,6 @@ public class UserIntegrationTest {
         assertNotNull(updateResp.getBody());
         assertEquals("updatedUser", updateResp.getBody().getUsername());
         assertEquals("updated@example.com", updateResp.getBody().getEmail());
-        // role remains USER after update
         assertEquals(UserRole.ROLE_CLIENT, updateResp.getBody().getRole());
 
         // 4) promote to manager
