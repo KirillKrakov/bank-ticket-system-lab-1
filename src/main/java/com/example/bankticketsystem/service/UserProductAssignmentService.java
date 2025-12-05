@@ -6,6 +6,7 @@ import com.example.bankticketsystem.model.entity.*;
 import com.example.bankticketsystem.model.enums.AssignmentRole;
 import com.example.bankticketsystem.model.enums.UserRole;
 import com.example.bankticketsystem.repository.*;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,19 +20,22 @@ import java.util.stream.Collectors;
 public class UserProductAssignmentService {
 
     private final UserProductAssignmentRepository repo;
-    // Статическое поле-холдер
-    private static volatile UserProductAssignmentRepository STATIC_ASSIGNMENT_REPOSITORY;
+    private final UserService userService;
+    private final ProductService productService;
 
-    public UserProductAssignmentService(UserProductAssignmentRepository repo) {
+    public UserProductAssignmentService(UserProductAssignmentRepository repo,
+                                        @Lazy UserService userService,
+                                        @Lazy ProductService productService) {
         this.repo = repo;
-        UserProductAssignmentService.STATIC_ASSIGNMENT_REPOSITORY = repo;
+        this.userService = userService;
+        this.productService = productService;
     }
 
     public UserProductAssignment assign(UUID actorId, UUID userId, UUID productId, AssignmentRole role) {
-        User u = UserService.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
-        Product p = ProductService.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
+        User u = userService.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        Product p = productService.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
 
-        var actor = UserService.findById(actorId).orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
+        var actor = userService.findById(actorId).orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
         boolean isAdmin = actor.getRole() == UserRole.ROLE_ADMIN;
         boolean isOwner = repo.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER);
 
@@ -70,7 +74,7 @@ public class UserProductAssignmentService {
         if (actorId == null) {
             throw new UnauthorizedException("You must specify the actorId to authorize in this request");
         }
-        var actor = UserService.findById(actorId)
+        var actor = userService.findById(actorId)
                 .orElseThrow(() -> new NotFoundException("Actor not found: " + actorId));
 
         if (actor.getRole() != UserRole.ROLE_ADMIN) {
@@ -78,14 +82,14 @@ public class UserProductAssignmentService {
         }
 
         if (userId != null && productId != null) {
-            User u = UserService.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
-            Product p = ProductService.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
+            User u = userService.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+            Product p = productService.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
             repo.deleteByUserIdAndProductId(userId, productId);
         } else if (userId != null) {
-            User u = UserService.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+            User u = userService.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
             repo.deleteByUserId(userId);
         } else if (productId != null) {
-            Product p = ProductService.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
+            Product p = productService.findById(productId).orElseThrow(() -> new NotFoundException("Product not found"));
             repo.deleteByProductId(productId);
         } else {
             repo.deleteAll();
@@ -102,11 +106,11 @@ public class UserProductAssignmentService {
         return dto;
     }
 
-    public static boolean existsByUserIdAndProductIdAndRoleOnProduct(UUID actorId, UUID productId, AssignmentRole assignmentRole ) {
-        return UserProductAssignmentService.STATIC_ASSIGNMENT_REPOSITORY.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, assignmentRole);
+    public boolean existsByUserIdAndProductIdAndRoleOnProduct(UUID actorId, UUID productId, AssignmentRole assignmentRole ) {
+        return repo.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, assignmentRole);
     }
 
-    public static void deleteByProductId(UUID productId) {
-        UserProductAssignmentService.STATIC_ASSIGNMENT_REPOSITORY.deleteByProductId(productId);
+    public void deleteByProductId(UUID productId) {
+        repo.deleteByProductId(productId);
     }
 }

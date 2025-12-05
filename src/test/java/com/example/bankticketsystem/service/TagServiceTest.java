@@ -14,6 +14,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.Instant;
 import java.util.*;
@@ -72,6 +74,21 @@ public class TagServiceTest {
         verify(repo, never()).save(any());
     }
 
+    @Test
+    public void createTag_callsCreateIfNotExists() {
+        Tag existing = new Tag();
+        existing.setId(UUID.randomUUID());
+        existing.setName("test");
+
+        when(repo.findByName("test")).thenReturn(Optional.of(existing));
+
+        Tag result = tagService.createTag("test");
+
+        assertNotNull(result);
+        assertEquals(existing.getId(), result.getId());
+        verify(repo, times(1)).findByName("test");
+    }
+
     // -----------------------
     // ReadAllTags tests
     // -----------------------
@@ -85,19 +102,18 @@ public class TagServiceTest {
         t2.setId(UUID.randomUUID());
         t2.setName("b");
 
-        when(repo.findAll(any(org.springframework.data.domain.Pageable.class)))
-                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(t1, t2)));
+        Page<Tag> page = new PageImpl<>(List.of(t1, t2));
+        when(repo.findAll(any(PageRequest.class))).thenReturn(page);
 
-        org.springframework.data.domain.Page<TagDto> p = tagService.listAll(0, 20);
+        Page<TagDto> result = tagService.listAll(0, 20);
 
-        assertEquals(2, p.getNumberOfElements());
-        List<String> names = p.getContent().stream().map(TagDto::getName).toList();
+        assertEquals(2, result.getNumberOfElements());
+        List<String> names = result.getContent().stream().map(TagDto::getName).toList();
         assertTrue(names.contains("a"));
         assertTrue(names.contains("b"));
 
-        verify(repo, times(1)).findAll(any(org.springframework.data.domain.Pageable.class));
+        verify(repo, times(1)).findAll(any(PageRequest.class));
     }
-
 
     // -----------------------
     // ReadTag tests
@@ -187,5 +203,67 @@ public class TagServiceTest {
         assertTrue(adto.getTags().contains("payments"));
 
         verify(repo, times(1)).findByNameWithApplications("payments");
+    }
+
+    // -----------------------
+    // toDto tests
+    // -----------------------
+
+    @Test
+    public void toApplicationDto_mapsAllFieldsCorrectly() {
+        Tag tag = new Tag();
+        tag.setId(UUID.randomUUID());
+        tag.setName("test");
+
+        Application app = new Application();
+        UUID appId = UUID.randomUUID();
+        app.setId(appId);
+
+        User applicant = new User();
+        UUID applicantId = UUID.randomUUID();
+        applicant.setId(applicantId);
+        app.setApplicant(applicant);
+
+        Product product = new Product();
+        UUID productId = UUID.randomUUID();
+        product.setId(productId);
+        app.setProduct(product);
+
+        app.setStatus(null);
+        Instant createdAt = Instant.now();
+        app.setCreatedAt(createdAt);
+
+        Document doc = new Document();
+        UUID docId = UUID.randomUUID();
+        doc.setId(docId);
+        doc.setFileName("test.pdf");
+        doc.setContentType("application/pdf");
+        doc.setStoragePath("/tmp/test");
+        doc.setApplication(app);
+        app.setDocuments(List.of(doc));
+
+        app.setTags(new HashSet<>(List.of(tag)));
+
+        // Since toApplicationDto is private, we need to test it indirectly
+        // by calling getTagWithApplications which uses it
+        tag.setApplications(new HashSet<>(List.of(app)));
+
+        when(repo.findByNameWithApplications("test")).thenReturn(Optional.of(tag));
+
+        TagDto tagDto = tagService.getTagWithApplications("test");
+
+        assertNotNull(tagDto);
+        assertNotNull(tagDto.getApplications());
+        assertEquals(1, tagDto.getApplications().size());
+
+        ApplicationDto appDto = tagDto.getApplications().get(0);
+        assertEquals(appId, appDto.getId());
+        assertEquals(applicantId, appDto.getApplicantId());
+        assertEquals(productId, appDto.getProductId());
+        assertEquals(createdAt, appDto.getCreatedAt());
+        assertNotNull(appDto.getDocuments());
+        assertEquals(1, appDto.getDocuments().size());
+        assertEquals("test.pdf", appDto.getDocuments().get(0).getFileName());
+        assertTrue(appDto.getTags().contains("test"));
     }
 }

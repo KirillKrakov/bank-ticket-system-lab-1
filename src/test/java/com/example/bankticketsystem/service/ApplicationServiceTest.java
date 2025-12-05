@@ -6,12 +6,12 @@ import com.example.bankticketsystem.model.entity.*;
 import com.example.bankticketsystem.model.entity.Tag;
 import com.example.bankticketsystem.model.enums.ApplicationStatus;
 import com.example.bankticketsystem.model.enums.UserRole;
-import com.example.bankticketsystem.repository.*;
+import com.example.bankticketsystem.repository.ApplicationHistoryRepository;
+import com.example.bankticketsystem.repository.ApplicationRepository;
 import com.example.bankticketsystem.util.ApplicationPage;
 import com.example.bankticketsystem.util.CursorUtil;
 import org.junit.jupiter.api.*;
 import org.mockito.*;
-import org.mockito.MockedStatic;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.*;
 
@@ -26,27 +26,22 @@ public class ApplicationServiceTest {
 
     @Mock private ApplicationRepository applicationRepository;
     @Mock private ApplicationHistoryRepository applicationHistoryRepository;
+    @Mock private UserService userService;
+    @Mock private ProductService productService;
+    @Mock private TagService tagService;
 
-    // We'll create the service manually (constructor takes two repos)
     private ApplicationService applicationService;
-
-    // static mocks for static calls inside ApplicationService
-    private MockedStatic<UserService> userServiceStatic;
-    private MockedStatic<ProductService> productServiceStatic;
-    private MockedStatic<TagService> tagServiceStatic;
 
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        // create service instance (this will also set STATIC_APPLICATION_REPOSITORY in ctor)
-        applicationService = new ApplicationService(applicationRepository, applicationHistoryRepository);
-    }
-
-    @AfterEach
-    public void tearDown() {
-        if (userServiceStatic != null) userServiceStatic.close();
-        if (productServiceStatic != null) productServiceStatic.close();
-        if (tagServiceStatic != null) tagServiceStatic.close();
+        applicationService = new ApplicationService(
+                applicationRepository,
+                applicationHistoryRepository,
+                userService,
+                productService,
+                tagService
+        );
     }
 
     // -----------------------
@@ -73,8 +68,7 @@ public class ApplicationServiceTest {
         req.setApplicantId(aid);
         req.setProductId(pid);
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(aid)).thenReturn(Optional.empty());
+        when(userService.findById(aid)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> applicationService.createApplication(req));
     }
@@ -90,11 +84,8 @@ public class ApplicationServiceTest {
         User user = new User();
         user.setId(aid);
 
-        userServiceStatic = mockStatic(UserService.class);
-        productServiceStatic = mockStatic(ProductService.class);
-
-        userServiceStatic.when(() -> UserService.findById(aid)).thenReturn(Optional.of(user));
-        productServiceStatic.when(() -> ProductService.findById(pid)).thenReturn(Optional.empty());
+        when(userService.findById(aid)).thenReturn(Optional.of(user));
+        when(productService.findById(pid)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> applicationService.createApplication(req));
     }
@@ -115,32 +106,19 @@ public class ApplicationServiceTest {
 
         User user = new User();
         user.setId(aid);
+        user.setRole(UserRole.ROLE_CLIENT);
         Product product = new Product();
         product.setId(pid);
 
-        // --- static mocks (создаём до вызова метода)
-        userServiceStatic = mockStatic(UserService.class);
-        productServiceStatic = mockStatic(ProductService.class);
-        tagServiceStatic = mockStatic(TagService.class);
+        when(userService.findById(aid)).thenReturn(Optional.of(user));
+        when(productService.findById(pid)).thenReturn(Optional.of(product));
 
-        // гарантируем ответ для точного ID
-        userServiceStatic.when(() -> UserService.findById(aid)).thenReturn(Optional.of(user));
-        productServiceStatic.when(() -> ProductService.findById(pid)).thenReturn(Optional.of(product));
-
-        // а также резервный ответ "на всякий случай" для любых входящих UUID
-        userServiceStatic.when(() -> UserService.findById(Mockito.any()))
-                .thenAnswer(inv -> Optional.of(user));
-        productServiceStatic.when(() -> ProductService.findById(Mockito.any()))
-                .thenAnswer(inv -> Optional.of(product));
-
-        // Перехватываем сохранение application — вернём тот же объект и настроим findById(savedId) -> Optional.of(saved)
-        // Для этого используем Answer, который подставит сохранённый объект в поведение findById
+        // Перехватываем сохранение application
         final Application[] savedHolder = new Application[1];
         when(applicationRepository.save(any(Application.class))).thenAnswer(inv -> {
             Application saved = inv.getArgument(0);
             if (saved.getId() == null) saved.setId(UUID.randomUUID());
             savedHolder[0] = saved;
-            // stub findById for this saved id so attachTags/findById внутри сервиса увидят приложение
             when(applicationRepository.findById(saved.getId())).thenReturn(Optional.of(saved));
             return saved;
         });
@@ -148,17 +126,11 @@ public class ApplicationServiceTest {
         // history save
         when(applicationHistoryRepository.save(any(ApplicationHistory.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // TagService.createTag static behaviour — возвращаем объект Tag для каждого имени
+        // TagService.createTag behaviour
         Tag tag1 = new Tag(); tag1.setId(UUID.randomUUID()); tag1.setName("t1");
         Tag tag2 = new Tag(); tag2.setId(UUID.randomUUID()); tag2.setName("t2");
-        tagServiceStatic.when(() -> TagService.createTag("t1")).thenReturn(tag1);
-        tagServiceStatic.when(() -> TagService.createTag("t2")).thenReturn(tag2);
-        // и запасной ответ на любые имена (если вдруг)
-        tagServiceStatic.when(() -> TagService.createTag(Mockito.anyString()))
-                .thenAnswer(inv -> {
-                    String name = inv.getArgument(0);
-                    Tag t = new Tag(); t.setId(UUID.randomUUID()); t.setName(name); return t;
-                });
+        when(tagService.createTag("t1")).thenReturn(tag1);
+        when(tagService.createTag("t2")).thenReturn(tag2);
 
         // Выполнение тестируемого метода
         ApplicationDto result = applicationService.createApplication(req);
@@ -173,9 +145,9 @@ public class ApplicationServiceTest {
         // Проверки взаимодействий
         verify(applicationRepository, atLeastOnce()).save(any(Application.class));
         verify(applicationHistoryRepository, times(1)).save(any(ApplicationHistory.class));
-        // verify static tag creation
-        tagServiceStatic.verify(() -> TagService.createTag("t1"), times(1));
-        tagServiceStatic.verify(() -> TagService.createTag("t2"), times(1));
+        verify(tagService, times(1)).createTag("t1");
+        verify(tagService, times(1)).createTag("t2");
+        verify(userService, times(2)).findById(aid); // once in create, once in attachTags
     }
 
     // -----------------------
@@ -263,7 +235,7 @@ public class ApplicationServiceTest {
     }
 
     // -----------------------
-    // attachTags tests (now relying on UserService static)
+    // attachTags tests
     // -----------------------
     @Test
     public void attachTags_actorIdNull_throwsUnauthorized() {
@@ -273,8 +245,7 @@ public class ApplicationServiceTest {
     @Test
     public void attachTags_actorNotFound_throwsNotFound() {
         UUID actorId = UUID.randomUUID();
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.empty());
+        when(userService.findById(actorId)).thenReturn(Optional.empty());
         assertThrows(NotFoundException.class, () -> applicationService.attachTags(UUID.randomUUID(), List.of("t"), actorId));
     }
 
@@ -285,8 +256,7 @@ public class ApplicationServiceTest {
         User user = new User();
         user.setId(actorId);
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(user));
+        when(userService.findById(actorId)).thenReturn(Optional.of(user));
         when(applicationRepository.findById(appId)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> applicationService.attachTags(appId, List.of("t"), actorId));
@@ -305,8 +275,7 @@ public class ApplicationServiceTest {
         applicant.setId(UUID.randomUUID());
         app.setApplicant(applicant);
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(user));
+        when(userService.findById(actorId)).thenReturn(Optional.of(user));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
 
         assertThrows(ForbiddenException.class, () -> applicationService.attachTags(appId, List.of("t"), actorId));
@@ -327,22 +296,19 @@ public class ApplicationServiceTest {
         app.setApplicant(applicant);
         app.setTags(new HashSet<>());
 
-        userServiceStatic = mockStatic(UserService.class);
-        tagServiceStatic = mockStatic(TagService.class);
-
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(user));
+        when(userService.findById(actorId)).thenReturn(Optional.of(user));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
 
         Tag t = new Tag();
         t.setId(UUID.randomUUID());
         t.setName("tag1");
-        tagServiceStatic.when(() -> TagService.createTag("tag1")).thenReturn(t);
+        when(tagService.createTag("tag1")).thenReturn(t);
 
         applicationService.attachTags(appId, List.of("tag1"), actorId);
 
         assertTrue(app.getTags().stream().anyMatch(tag -> "tag1".equals(tag.getName())));
         verify(applicationRepository, times(1)).save(app);
-        tagServiceStatic.verify(() -> TagService.createTag("tag1"), times(1));
+        verify(tagService, times(1)).createTag("tag1");
     }
 
     // -----------------------
@@ -356,8 +322,7 @@ public class ApplicationServiceTest {
     @Test
     public void removeTags_actorNotFound_throwsNotFound() {
         UUID actorId = UUID.randomUUID();
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.empty());
+        when(userService.findById(actorId)).thenReturn(Optional.empty());
         assertThrows(NotFoundException.class, () -> applicationService.removeTags(UUID.randomUUID(), List.of("t"), actorId));
     }
 
@@ -374,8 +339,7 @@ public class ApplicationServiceTest {
         applicant.setId(UUID.randomUUID());
         app.setApplicant(applicant);
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(user));
+        when(userService.findById(actorId)).thenReturn(Optional.of(user));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
 
         assertThrows(ForbiddenException.class, () -> applicationService.removeTags(appId, List.of("t"), actorId));
@@ -402,8 +366,7 @@ public class ApplicationServiceTest {
         tag2.setName("b");
         app.setTags(new HashSet<>(List.of(tag1, tag2)));
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(user));
+        when(userService.findById(actorId)).thenReturn(Optional.of(user));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
 
         applicationService.removeTags(appId, List.of("a"), actorId);
@@ -428,8 +391,7 @@ public class ApplicationServiceTest {
     @Test
     public void changeStatus_actorNotFound_throwsNotFound() {
         UUID actorId = UUID.randomUUID();
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.empty());
+        when(userService.findById(actorId)).thenReturn(Optional.empty());
         assertThrows(NotFoundException.class, () -> applicationService.changeStatus(UUID.randomUUID(), "APPROVED", actorId));
     }
 
@@ -441,8 +403,7 @@ public class ApplicationServiceTest {
         actor.setId(actorId);
         actor.setRole(UserRole.ROLE_ADMIN);
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(applicationRepository.findById(appId)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> applicationService.changeStatus(appId, "APPROVED", actorId));
@@ -460,8 +421,7 @@ public class ApplicationServiceTest {
         Application app = new Application();
         app.setId(appId);
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
 
         assertThrows(ForbiddenException.class, () -> applicationService.changeStatus(appId, "APPROVED", actorId));
@@ -483,8 +443,7 @@ public class ApplicationServiceTest {
         app.setApplicant(applicant);
         app.setStatus(ApplicationStatus.SUBMITTED);
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
 
         assertThrows(ConflictException.class, () -> applicationService.changeStatus(appId, "APPROVED", actorId));
@@ -503,8 +462,7 @@ public class ApplicationServiceTest {
         app.setId(appId);
         app.setStatus(ApplicationStatus.SUBMITTED);
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
 
         assertThrows(ConflictException.class, () -> applicationService.changeStatus(appId, "NOT_EXIST", actorId));
@@ -523,8 +481,7 @@ public class ApplicationServiceTest {
         app.setId(appId);
         app.setStatus(ApplicationStatus.APPROVED);
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
 
         ApplicationDto dto = applicationService.changeStatus(appId, "APPROVED", actorId);
@@ -547,8 +504,7 @@ public class ApplicationServiceTest {
         app.setId(appId);
         app.setStatus(ApplicationStatus.SUBMITTED);
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
         when(applicationRepository.save(any(Application.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(applicationHistoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -573,8 +529,7 @@ public class ApplicationServiceTest {
         app.setId(appId);
         app.setStatus(ApplicationStatus.SUBMITTED);
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
 
         DataIntegrityViolationException dive = new DataIntegrityViolationException("constraint", new SQLException("FK failed"));
@@ -596,8 +551,7 @@ public class ApplicationServiceTest {
     @Test
     public void deleteApplication_actorNotFound_throwsNotFound() {
         UUID actorId = UUID.randomUUID();
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.empty());
+        when(userService.findById(actorId)).thenReturn(Optional.empty());
         assertThrows(NotFoundException.class, () -> applicationService.deleteApplication(UUID.randomUUID(), actorId));
     }
 
@@ -608,8 +562,7 @@ public class ApplicationServiceTest {
         actor.setId(actorId);
         actor.setRole(UserRole.ROLE_CLIENT);
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
 
         assertThrows(ForbiddenException.class, () -> applicationService.deleteApplication(UUID.randomUUID(), actorId));
     }
@@ -622,8 +575,7 @@ public class ApplicationServiceTest {
         admin.setRole(UserRole.ROLE_ADMIN);
         UUID appId = UUID.randomUUID();
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(admin));
+        when(userService.findById(actorId)).thenReturn(Optional.of(admin));
         when(applicationRepository.findById(appId)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> applicationService.deleteApplication(appId, actorId));
@@ -638,8 +590,7 @@ public class ApplicationServiceTest {
         Application app = new Application();
         app.setId(UUID.randomUUID());
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(admin));
+        when(userService.findById(actorId)).thenReturn(Optional.of(admin));
         when(applicationRepository.findById(app.getId())).thenReturn(Optional.of(app));
         doThrow(new RuntimeException("fk")).when(applicationRepository).delete(app);
 
@@ -656,8 +607,7 @@ public class ApplicationServiceTest {
         Application app = new Application();
         app.setId(UUID.randomUUID());
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(admin));
+        when(userService.findById(actorId)).thenReturn(Optional.of(admin));
         when(applicationRepository.findById(app.getId())).thenReturn(Optional.of(app));
         doNothing().when(applicationRepository).delete(app);
 
@@ -677,8 +627,7 @@ public class ApplicationServiceTest {
     @Test
     public void listHistory_actorNotFound_throwsNotFound() {
         UUID actorId = UUID.randomUUID();
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.empty());
+        when(userService.findById(actorId)).thenReturn(Optional.empty());
         assertThrows(NotFoundException.class, () -> applicationService.listHistory(UUID.randomUUID(), actorId));
     }
 
@@ -689,8 +638,7 @@ public class ApplicationServiceTest {
         User actor = new User();
         actor.setId(actorId);
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(applicationRepository.findById(appId)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> applicationService.listHistory(appId, actorId));
@@ -709,8 +657,7 @@ public class ApplicationServiceTest {
         applicant.setId(UUID.randomUUID());
         app.setApplicant(applicant);
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
 
         assertThrows(ForbiddenException.class, () -> applicationService.listHistory(appId, actorId));
@@ -743,8 +690,7 @@ public class ApplicationServiceTest {
         h2.setChangedBy(UserRole.ROLE_ADMIN);
         h2.setChangedAt(Instant.now());
 
-        userServiceStatic = mockStatic(UserService.class);
-        userServiceStatic.when(() -> UserService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
         when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
         when(applicationHistoryRepository.findByApplicationIdOrderByChangedAtDesc(appId)).thenReturn(List.of(h2, h1));
 
@@ -752,5 +698,58 @@ public class ApplicationServiceTest {
         assertEquals(2, res.size());
         assertEquals(h2.getId(), res.get(0).getId());
         assertEquals(h1.getId(), res.get(1).getId());
+    }
+
+    // -----------------------
+    // findByApplicantId tests
+    // -----------------------
+    @Test
+    public void findByApplicantId_returnsApplications() {
+        UUID applicantId = UUID.randomUUID();
+        Application app1 = new Application();
+        app1.setId(UUID.randomUUID());
+        Application app2 = new Application();
+        app2.setId(UUID.randomUUID());
+
+        List<Application> apps = List.of(app1, app2);
+        when(applicationRepository.findByApplicantId(applicantId)).thenReturn(apps);
+
+        List<Application> result = applicationService.findByApplicantId(applicantId);
+        assertEquals(2, result.size());
+        verify(applicationRepository, times(1)).findByApplicantId(applicantId);
+    }
+
+    // -----------------------
+    // findByProductId tests
+    // -----------------------
+    @Test
+    public void findByProductId_returnsApplications() {
+        UUID productId = UUID.randomUUID();
+        Application app1 = new Application();
+        app1.setId(UUID.randomUUID());
+        Application app2 = new Application();
+        app2.setId(UUID.randomUUID());
+
+        List<Application> apps = List.of(app1, app2);
+        when(applicationRepository.findByProductId(productId)).thenReturn(apps);
+
+        List<Application> result = applicationService.findByProductId(productId);
+        assertEquals(2, result.size());
+        verify(applicationRepository, times(1)).findByProductId(productId);
+    }
+
+    // -----------------------
+    // delete tests
+    // -----------------------
+    @Test
+    public void delete_callsRepositoryDelete() {
+        Application app = new Application();
+        app.setId(UUID.randomUUID());
+
+        doNothing().when(applicationRepository).delete(app);
+
+        applicationService.delete(app);
+
+        verify(applicationRepository, times(1)).delete(app);
     }
 }

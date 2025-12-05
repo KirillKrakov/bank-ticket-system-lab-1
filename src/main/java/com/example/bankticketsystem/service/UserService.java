@@ -6,9 +6,9 @@ import com.example.bankticketsystem.exception.*;
 import com.example.bankticketsystem.model.entity.Application;
 import com.example.bankticketsystem.model.entity.User;
 import com.example.bankticketsystem.model.enums.UserRole;
-import com.example.bankticketsystem.repository.ApplicationRepository;
 import com.example.bankticketsystem.repository.UserRepository;
 import com.password4j.Password;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.*;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,13 +22,11 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
-    // Статическое поле-холдер
-    private static volatile UserRepository STATIC_USER_REPOSITORY;
+    private final ApplicationService applicationService;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, @Lazy ApplicationService applicationService) {
         this.userRepository = userRepository;
-
-        UserService.STATIC_USER_REPOSITORY = userRepository;
+        this.applicationService = applicationService;
     }
 
     public UserDto create(UserRequest req) {
@@ -117,9 +115,9 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("User not found: " + userId));
 
         try {
-            List<Application> apps = ApplicationService.findByApplicantId(userId);
+            List<Application> apps = applicationService.findByApplicantId(userId);
             for (Application a : apps) {
-                ApplicationService.delete(a);
+                applicationService.delete(a);
             }
             userRepository.delete(existing);
         } catch (Exception ex) {
@@ -161,7 +159,7 @@ public class UserService {
         userRepository.save(u);
     }
 
-    public static Optional<User> findById(UUID id) {
-        return STATIC_USER_REPOSITORY.findById(id);
+    public Optional<User> findById(UUID id) {
+        return userRepository.findById(id);
     }
 }

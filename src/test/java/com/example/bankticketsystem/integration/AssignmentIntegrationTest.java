@@ -1,5 +1,6 @@
 package com.example.bankticketsystem.integration;
 
+import com.example.bankticketsystem.dto.UserRequest;
 import com.example.bankticketsystem.dto.UserDto;
 import com.example.bankticketsystem.dto.UserProductAssignmentDto;
 import com.example.bankticketsystem.model.entity.Product;
@@ -13,7 +14,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.*;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -28,6 +32,8 @@ import java.util.Objects;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -44,6 +50,21 @@ public class AssignmentIntegrationTest {
         r.add("spring.datasource.url", postgres::getJdbcUrl);
         r.add("spring.datasource.username", postgres::getUsername);
         r.add("spring.datasource.password", postgres::getPassword);
+    }
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        @Primary
+        public com.example.bankticketsystem.service.ApplicationService applicationService() {
+            return mock(com.example.bankticketsystem.service.ApplicationService.class);
+        }
+
+        @Bean
+        @Primary
+        public com.example.bankticketsystem.service.TagService tagService() {
+            return mock(com.example.bankticketsystem.service.TagService.class);
+        }
     }
 
     @Autowired private TestRestTemplate rest;
@@ -65,15 +86,15 @@ public class AssignmentIntegrationTest {
         admin.setId(UUID.randomUUID());
         admin.setUsername("adminActor");
         admin.setEmail("admin@example.com");
-        admin.setPasswordHash("adminpass"); // not used by controller but DB requires non-null
+        admin.setPasswordHash("$2a$10$someHashForAdmin");
         admin.setRole(UserRole.ROLE_ADMIN);
         admin.setCreatedAt(Instant.now());
         User savedAdmin = userRepository.save(admin);
         UUID adminId = savedAdmin.getId();
         assertNotNull(adminId);
 
-        // 2) create a normal user via POST /api/v1/users
-        UserDto createUserReq = new UserDto();
+        // 2) create a normal user via POST /api/v1/users - исправлено на UserRequest
+        UserRequest createUserReq = new UserRequest();
         createUserReq.setUsername("targetUser");
         createUserReq.setEmail("target@example.com");
         createUserReq.setPassword("targetPass123");
@@ -83,24 +104,36 @@ public class AssignmentIntegrationTest {
         assertNotNull(createUserResp.getBody());
         UUID userId = createUserResp.getBody().getId();
 
-        // 3) create a product directly in DB (assuming no API endpoint for products)
+        // 3) create a product using Product API if exists, otherwise create directly
+        // Предположим, что есть API для создания продуктов
+        // Если нет API, создаем через репозиторий
         Product product = new Product();
         product.setId(UUID.randomUUID());
         product.setName("testProduct");
+        product.setDescription("Test product description");
         productRepository.save(product);
         UUID productId = product.getId();
 
         // 4) create assignment via POST /api/v1/assignments?actorId=...
-        UserProductAssignmentDto assignReq = new UserProductAssignmentDto();
-        assignReq.setUserId(userId);
-        assignReq.setProductId(productId);
-        assignReq.setRole(AssignmentRole.RESELLER);
+        // Исправляем запрос - используем правильный DTO или создаем его правильно
+        // В реальном API скорее всего нужен отдельный Request DTO, но используем существующий
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        // Создаем строку JSON вручную, так как нет отдельного Request DTO
+        String assignJson = String.format(
+                "{\"userId\":\"%s\",\"productId\":\"%s\",\"role\":\"RESELLER\"}",
+                userId, productId
+        );
+
+        HttpEntity<String> assignEntity = new HttpEntity<>(assignJson, headers);
 
         ResponseEntity<UserProductAssignmentDto> assignResp = rest.postForEntity(
                 "/api/v1/assignments?actorId=" + adminId,
-                assignReq,
+                assignEntity,
                 UserProductAssignmentDto.class
         );
+
         assertEquals(HttpStatus.CREATED, assignResp.getStatusCode());
         assertNotNull(assignResp.getBody());
         UUID assignmentId = assignResp.getBody().getId();
@@ -140,14 +173,16 @@ public class AssignmentIntegrationTest {
         assertTrue(fullAssignments.stream().anyMatch(a -> assignmentId.equals(a.getId())));
 
         // 5) update assignment by re-assigning with new role
-        UserProductAssignmentDto updateReq = new UserProductAssignmentDto();
-        updateReq.setUserId(userId);
-        updateReq.setProductId(productId);
-        updateReq.setRole(AssignmentRole.PRODUCT_OWNER);
+        String updateJson = String.format(
+                "{\"userId\":\"%s\",\"productId\":\"%s\",\"role\":\"PRODUCT_OWNER\"}",
+                userId, productId
+        );
+
+        HttpEntity<String> updateEntity = new HttpEntity<>(updateJson, headers);
 
         ResponseEntity<UserProductAssignmentDto> updateResp = rest.postForEntity(
                 "/api/v1/assignments?actorId=" + adminId,
-                updateReq,
+                updateEntity,
                 UserProductAssignmentDto.class
         );
         assertEquals(HttpStatus.CREATED, updateResp.getStatusCode());

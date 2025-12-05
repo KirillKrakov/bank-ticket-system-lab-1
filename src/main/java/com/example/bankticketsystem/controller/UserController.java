@@ -27,12 +27,9 @@ public class UserController {
 
     private static final int MAX_PAGE_SIZE = 50;
     private final UserService userService;
-    private final UserRepository userRepository;
 
-    public UserController(UserService userService,
-                          UserRepository userRepository) {
+    public UserController(UserService userService) {
         this.userService = userService;
-        this.userRepository = userRepository;
     }
 
     // Create: POST “/api/v1/users” + UserDto(username,email,password) (Body)
