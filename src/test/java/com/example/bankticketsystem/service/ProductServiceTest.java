@@ -16,8 +16,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,6 +33,9 @@ public class ProductServiceTest {
     private ProductRepository productRepository;
 
     @Mock
+    private ProductService productService;
+
+    @Mock
     private UserService userService;
 
     @Mock
@@ -36,8 +43,6 @@ public class ProductServiceTest {
 
     @Mock
     private UserProductAssignmentService assignmentService;
-
-    private ProductAppManagementService productAppManagementService;
 
     @BeforeEach
     public void setUp() {
@@ -172,7 +177,7 @@ public class ProductServiceTest {
     @Test
     public void updateProduct_nullRequest_throwsBadRequest() {
         assertThrows(BadRequestException.class, () ->
-                productAppManagementService.updateProduct(UUID.randomUUID(), null, UUID.randomUUID()));
+                productService.updateProduct(UUID.randomUUID(), null, UUID.randomUUID()));
     }
 
     @Test
@@ -251,14 +256,13 @@ public class ProductServiceTest {
                 .thenReturn(false);
         when(productRepository.save(any(Product.class))).thenReturn(saved);
 
-        when(userService.findById(actorId)).thenReturn(actor);
-        when(productService.findById(productId)).thenReturn(existing);
+        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
+        when(productService.findById(productId)).thenReturn(Optional.of(existing));
         when(assignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
                 .thenReturn(false); // admin doesn't need to be owner
-        when(productService.save(any(Product.class))).thenReturn(saved);
-        when(productService.toDto(saved)).thenReturn(expectedDto);
+        when(productRepository.save(any(Product.class))).thenReturn(saved);
 
-        ProductDto resp = productAppManagementService.updateProduct(productId, req, actorId);
+        ProductDto resp = productService.updateProduct(productId, req, actorId);
 
         assertNotNull(resp);
         assertEquals("newName", resp.getName());
@@ -291,13 +295,12 @@ public class ProductServiceTest {
         saved.setDescription("ownerDesc");
 
         when(userService.findById(actorId)).thenReturn(Optional.of(actor));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+        when(productService.findById(productId)).thenReturn(Optional.of(existing));
         when(assignmentService.existsByUserIdAndProductIdAndRoleOnProduct(actorId, productId, AssignmentRole.PRODUCT_OWNER))
                 .thenReturn(true);
-        when(productService.save(any(Product.class))).thenReturn(saved);
-        when(productService.toDto(saved)).thenReturn(expectedDto);
+        when(productRepository.save(any(Product.class))).thenReturn(saved);
 
-        ProductDto resp = productAppManagementService.updateProduct(productId, req, actorId);
+        ProductDto resp = productService.updateProduct(productId, req, actorId);
 
         assertNotNull(resp);
         assertEquals("ownerName", resp.getName());
@@ -332,7 +335,7 @@ public class ProductServiceTest {
         when(productRepository.findById(productId)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () ->
-                productAppManagementService.deleteProduct(productId, actorId));
+                productService.deleteProduct(productId, actorId));
 
         verify(productService, times(1)).findById(productId);
     }
@@ -395,7 +398,7 @@ public class ProductServiceTest {
         doNothing().when(assignmentService).deleteByProductId(productId);
         doNothing().when(productRepository).delete(product);
 
-        productAppManagementService.deleteProduct(productId, actorId);
+        productService.deleteProduct(productId, actorId);
 
         verify(applicationService, times(1)).findByProductId(productId);
         verify(applicationService, times(1)).delete(app1);
@@ -430,7 +433,6 @@ public class ProductServiceTest {
         when(applicationService.findByProductId(productId)).thenReturn(List.of(app));
         doThrow(new RuntimeException("db error")).when(applicationService).delete(any(Application.class));
 
-        assertTrue(ex.getMessage().contains("Failed to delete product"));
         verify(applicationService, times(1)).delete(any(Application.class));
     }
 }

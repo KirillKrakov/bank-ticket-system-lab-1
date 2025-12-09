@@ -4,7 +4,6 @@ import com.example.bankticketsystem.dto.UserDto;
 import com.example.bankticketsystem.dto.UserRequest;
 import com.example.bankticketsystem.exception.BadRequestException;
 import com.example.bankticketsystem.repository.UserRepository;
-import com.example.bankticketsystem.service.UserAppManagementService;
 import com.example.bankticketsystem.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -109,7 +108,7 @@ public class UserController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable("id") UUID id,
                                            @RequestParam("actorId") UUID actorId) {
-        managementService.deleteUser(id, actorId);
+        userService.deleteUser(id, actorId);
         return ResponseEntity.noContent().build();
     }
 

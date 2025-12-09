@@ -39,14 +39,6 @@ public class ApplicationService {
         this.tagService =tagService;
     }
 
-    List<Application> findByApplicantId(UUID applicantId){
-        return applicationRepository.findByApplicantId(applicantId);
-    }
-
-    List<Application> findByProductId(UUID productId){
-        return applicationRepository.findByProductId(productId);
-    }
-
     @Transactional
     public ApplicationDto createApplication(ApplicationRequest req) {
         if (req == null) throw new BadRequestException("Request is required");
