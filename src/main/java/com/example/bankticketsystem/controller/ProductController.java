@@ -2,7 +2,6 @@ package com.example.bankticketsystem.controller;
 
 import com.example.bankticketsystem.dto.ProductDto;
 import com.example.bankticketsystem.dto.ProductRequest;
-import com.example.bankticketsystem.service.ProductAppManagementService;
 import com.example.bankticketsystem.service.ProductService;
 import com.example.bankticketsystem.exception.BadRequestException;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,10 +26,9 @@ public class ProductController {
 
     private static final int MAX_PAGE_SIZE = 50;
     private final ProductService productService;
-    private final ProductAppManagementService managementService;
 
-    public ProductController(ProductService productService, ProductAppManagementService managementService) { this.productService = productService;
-        this.managementService = managementService;
+    public ProductController(ProductService productService) {
+        this.productService = productService;
     }
 
     // Create: POST "/api/v1/products" + ProductDto(name,description) (Body)
@@ -94,7 +92,7 @@ public class ProductController {
     public ResponseEntity<ProductDto> updateProduct(@PathVariable("id") UUID id,
                                                     @Valid @RequestBody ProductRequest req,
                                                     @RequestParam("actorId") UUID actorId) {
-        ProductDto dto = managementService.updateProduct(id, req, actorId);
+        ProductDto dto = productService.updateProduct(id, req, actorId);
         return ResponseEntity.ok(dto);
     }
 
@@ -111,7 +109,7 @@ public class ProductController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable("id") UUID id,
                                               @RequestParam("actorId") UUID actorId) {
-        managementService.deleteProduct(id, actorId);
+        productService.deleteProduct(id, actorId);
         return ResponseEntity.noContent().build();
     }
 }

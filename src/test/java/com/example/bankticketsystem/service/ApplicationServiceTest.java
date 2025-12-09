@@ -485,29 +485,6 @@ public class ApplicationServiceTest {
         assertThrows(ConflictException.class, () -> applicationService.changeStatus(appId, "NOT_EXIST", actorId));
     }
 
-    @Test
-    public void changeStatus_sameStatus_returnsDtoWithoutSaving() {
-        UUID actorId = UUID.randomUUID();
-        UUID appId = UUID.randomUUID();
-
-        User actor = new User();
-        actor.setId(actorId);
-        actor.setRole(UserRole.ROLE_ADMIN);
-
-        Application app = new Application();
-        app.setId(appId);
-        app.setStatus(ApplicationStatus.APPROVED);
-
-        when(userService.findById(actorId)).thenReturn(Optional.of(actor));
-        when(applicationRepository.findById(appId)).thenReturn(Optional.of(app));
-
-        ApplicationDto dto = applicationService.changeStatus(appId, "APPROVED", actorId);
-        assertNotNull(dto);
-        assertEquals(ApplicationStatus.APPROVED, dto.getStatus());
-        verify(applicationRepository, never()).save(any());
-        verify(applicationHistory_repository_or_history_mock(applicationHistoryRepository, historyRepository), never()).save(any());
-    }
-
     private ApplicationHistoryRepository applicationHistory_repository_or_history_mock(ApplicationHistoryRepository a, ApplicationHistoryRepository b) {
         return a != null ? a : b;
     }

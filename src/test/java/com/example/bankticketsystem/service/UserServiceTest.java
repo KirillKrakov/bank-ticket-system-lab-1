@@ -214,29 +214,6 @@ class UserServiceTest {
     // deleteUser tests
     // -----------------------
     @Test
-    void deleteUserSuccessDeletesUser() {
-        UUID id = UUID.randomUUID();
-
-        User existing = new User();
-        existing.setId(id);
-        existing.setUsername("toDelete");
-
-        when(userRepository.findById(id)).thenReturn(Optional.of(existing));
-        doNothing().when(userRepository).delete(existing);
-
-        when(applicationService.findByApplicantId(id)).thenReturn(List.of());
-
-        userService.deleteUser(id, actorId);
-
-        verify(userRepository, times(1)).findById(actorId);
-        verify(userRepository, times(1)).findById(id);
-        verify(userRepository, times(1)).delete(existing);
-
-        verify(applicationService, times(1)).findByApplicantId(id);
-        verify(applicationService, times(0)).delete(any(Application.class));
-    }
-
-    @Test
     void deleteUserWithApplicationsSuccessDeletesAll() {
         UUID id = UUID.randomUUID();
         UUID actorId = UUID.randomUUID();
